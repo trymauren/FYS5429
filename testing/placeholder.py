@@ -11,6 +11,5 @@ w[1,1] = 4
 x = np.zeros((0,2))
 print(x.shape)
 print(w.shape)
-# print(x.T.shape)
 print(np.dot(w,x.T))
 print(x@w)

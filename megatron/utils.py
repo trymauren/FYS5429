@@ -1,7 +1,9 @@
 import numpy as np
 
 def ReLU(x):
-    return x * (x > 0)
+    ret = [n * (n > 0) for n in x]
+    return np.array(ret, dtype=float)
+
 
 def tanh():
     pass
@@ -10,11 +12,26 @@ def sigmoid():
     pass
 
 
-def init_weights(input_size, hidden_layer_sizes, random_weight):
-    layer_sizes = [input_size] + hidden_layer_sizes
-    weight_matrices = [np.random.randn(layer_sizes[i], layer_sizes[i-1]) * random_weight for i in range(1,len(layer_sizes))]
-    
-    out = X@weight_matrices[0].T
+def init_weights(layer_sizes, random_weight) -> list:
+    """
+    Initialise weights.
 
-np.random.seed(128)
-init_weights(10,[2,3], 1)
+    The size of the input (and the preceding hidden layer) is what determines
+    the number the weights for the first layer and so on.
+    """
+    weight_matrices = [np.random.randn(layer_sizes[i], layer_sizes[i-1]) * random_weight for i in range(1,len(layer_sizes))]
+    return weight_matrices
+    
+def init_biases(layer_sizes, random_weight) -> list:
+    """
+    Initialise biases.
+
+    One bias is initialised per node per layer.
+    """
+    bias_matrices = [np.random.randn(1, layer_sizes[i]) * random_weight for i in range(1, len(layer_sizes))]
+    return bias_matrices
+
+
+# np.random.seed(128)
+# init_weights(10,[2,3], 1)
+
