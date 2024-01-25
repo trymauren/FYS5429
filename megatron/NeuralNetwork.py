@@ -1,7 +1,6 @@
 import utils
 import autograd.numpy as np
 
-
 class NeuralNetwork:
 
     def __init__(self, hidden_layer_sizes: list[int], alpha: int, solver: str):
@@ -25,7 +24,9 @@ class NeuralNetwork:
         return z
 
     def _backward(self, y_pred, y_true):
-        -(y*log(p) + (1-y) * log(1-p))
+        # this is the formula for log-loss (cross-entropy). Need to fit it to our case
+        # and it may also may not be right to use this for regression. Consider MSE?
+        return -(y*log(p) + (1-y) * log(1-p))
 
     def fit(self, X, y, epochs, batch=False):
 
@@ -37,11 +38,11 @@ class NeuralNetwork:
         self.input_size = X.shape[1]
         self.output_size = y.shape[0]
 
-        # Merging to one variable to simplify
+        # Merging to one list
         layer_sizes = [self.input_size] + self.hidden_layer_sizes + [self.output_size] 
 
-        self.weights = utils.init_weights(layer_sizes, 0.01)
-        self.biases = utils.init_biases(layer_sizes, 0.01)
+        self.weights = utils.init_weights(layer_sizes, random_weight=0.01)
+        self.biases = utils.init_biases(layer_sizes, random_weight=0.01)
 
         # if batch:
         #     # Should implement some kind of batch-processing?
