@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-name: "Bjerkan"
+  given-names: "Mons"
+  orcid: "https://orcid.org/0000-0000-0000-0000"
+- family-names: "Lynum"
+  given-names: "Elias"
+  orcid: "https://orcid.org/0000-0000-0000-0000"
+- family-names: "Auren"
+  given-names: "Trym"
+title: "Recurrent models"
+version: 0.0.0
+doi: --
+date-released: 2023-01-25
+url: "https://github.com/trymauren/FYS5429"
