@@ -5,8 +5,13 @@ class RecurrentNN:
     def __init__(self) -> None:
         pass
 
-    def _forward(self, X : np.ndarray) -> np.ndarray:
-        pass
+    def forward(self,X:np.array, w_x:np.array, w_rec:np.array) -> np.array:
+
+        h_states = np.zeros((len(X)),self.n_hidden_nodes)        
+
+        for i in range(len(X)):
+            h_states[i,:] = X[i,:]@w_x + h_states[i-1,:]@w_rec
+        
 
     def _backward(self, y_estimate : np.ndarray) -> None:
         pass
@@ -19,7 +24,7 @@ class RecurrentNN:
             optimization_algorithm : str = None
         ) -> None:
         
-        pass
+        w_hh= np.zeros(self.n_hidden_nodes, self.n_hidden_nodes) #State values for each node in each state
 
     def predict(self, X : np.ndarray) -> np.ndarray:
         pass
