@@ -8,7 +8,8 @@ def save_model(estimator, path, fn):
     and filename, this function will dump it using pickle
     See: https://docs.python.org/3/library/pickle.html
 
-    TODO: Use something that is safe instead..?
+    TODO: Use something that is safe instead..? 
+    NOTE: But don't we like a life one the edge?
     """
     with open(path + '/' + fn, 'wb') as filepointer:
         pickle.dump(
@@ -26,6 +27,7 @@ def load_model(path):
     See: https://docs.python.org/3/library/pickle.html
 
     TODO: Use something that is safe instead..?
+    NOTE: But don't we like a life one the edge?
     """
     with open(path, 'rb') as filepointer:
         estimator = pickle.load(filepointer)
