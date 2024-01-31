@@ -29,8 +29,7 @@ class RecurrentNN:
         Parameters:
         -------------------------------
         X : np.array
-        - input sequence, sequence of several time
-          dependent datapoints, often in the for of vectors (np.arrays) 
+        - sequence of numbers to be used for prediction 
         
         w_x : np.array
         - input weights, from input layer to hidden layer
