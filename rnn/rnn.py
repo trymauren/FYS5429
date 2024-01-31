@@ -1,8 +1,16 @@
 import numpy as np
+from utils import activations, loss_functions, read_load_model
 
 class RecurrentNN:
 
-    def __init__(self) -> None:
+    def __init__(self,
+                 activation: str, 
+                 loss: str
+        ) -> None:
+
+        self._act = activations.activation
+        self._loss = loss_functions.loss
+
         #Initialize weights as nothing until properly initialized in 
         #fit() method
         self.w_x, self.w_rec, self.w_y = None
@@ -44,12 +52,12 @@ class RecurrentNN:
         h_states = np.zeros(time_steps,h_layer_size)        
         
         z = X[t,:]@self.w_x + self.b_x
-        h_t = self.act(z)
+        h_t = self._act(z)
         h_states[0,:] = np.flatten(h_t)
 
         for t in range(1,time_steps):
             z = X[t,:]@self.w_x + h_states[t-1,:]@self.w_rec + self.b_rec
-            h_t = self.act(z)
+            h_t = self._act(z)
         
         h_states[t,:] = np.flatten(h_t)
 
@@ -148,6 +156,9 @@ class RecurrentNN:
             #set threshold, if not break and do an early exit
             if improvement < improvement_threshold:
                 break
+        
+        read_load_model.save_model(self, "saved_models/", "RNN_model")         #Maybe have model/filename as a parameter? 
+
 
     def predict(self, X : np.ndarray) -> np.ndarray:
         """
