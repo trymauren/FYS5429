@@ -52,10 +52,9 @@ class ReccurentNN:
 
         Parameters:
         -------------------------------
-        x : np.array
-        - input sequence, sequence of several time
-          dependent data consisting of numbers
-
+        X : np.array
+        - sequence of numbers to be used for prediction 
+        
         w_x : np.array
         - input weights, from input layer to hidden layer
 
