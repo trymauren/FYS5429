@@ -37,16 +37,9 @@ class Relu(Activation):
         self.z = np.maximum(0, z)
         return self.z
 
-    def grad(self, z):
+    def grad(self, a):
         """Decided on using f'(0)=1. Could do f'(0)=0 instead"""
-
-        if self.z is None:
-            print('Error, something should be thrown here')
-            return None
-
-        ret = 1 if z >= 0 else 0
-        self.z = None
-        return ret
+        return 1 if a >= 0 else 0
 
 
 class Tanh(Activation):
@@ -56,21 +49,14 @@ class Tanh(Activation):
 
     def eval(self, z):
         """Returns a np.ndarray with same dimensions as z"""
-        self.z = np.tanh(z)
-        return self.z
+        return np.tanh(z)
 
-    def grad(self, z):
+    def grad(self, a):
         """
-        Assume z is the output from tanh(z)! or else the
+        Assume a is the output from tanh(a)! or else the
         derivative must be calculated differently
         """
-        if self.z is None:
-            print('Error, something should be thrown here')
-            return None
-
-        ret = 1 - self.z**2
-        self.z = None
-        return ret
+        return 1 - a**2
 
 
 class Sigmoid(Activation):

@@ -1,6 +1,9 @@
+import sys
 import git
-path_to_root = git.Repo('.', search_parent_directories=True).working_dir
 import pickle
+path_to_root = git.Repo('.', search_parent_directories=True).working_dir
+sys.path.append(path_to_root)
+
 
 def save_model(estimator, path, fn):
     """
@@ -8,7 +11,7 @@ def save_model(estimator, path, fn):
     and filename, this function will dump it using pickle
     See: https://docs.python.org/3/library/pickle.html
 
-    TODO: Use something that is safe instead..? 
+    TODO: Use something that is safe instead..?
     NOTE: But don't we like a life one the edge?
     """
     with open(path + '/' + fn, 'wb') as filepointer:
@@ -19,11 +22,10 @@ def save_model(estimator, path, fn):
                     )
 
 
-
 def load_model(path):
     """
     Given a file path (that includes the filename), this function
-    will load it from a file that has been written using pickle. 
+    will load it from a file that has been written using pickle.
     See: https://docs.python.org/3/library/pickle.html
 
     TODO: Use something that is safe instead..?
@@ -33,4 +35,3 @@ def load_model(path):
         estimator = pickle.load(filepointer)
 
     return estimator
-
