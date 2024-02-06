@@ -4,7 +4,7 @@ import numpy as np
 from utils.activations import Relu, Tanh
 from utils.loss_functions import Mean_Square_Loss as mse
 from utils.optimisers import Adam
-import utils.read_load_model
+from utils import read_load_model
 from collections.abc import Callable
 
 path_to_root = git.Repo('.', search_parent_directories=True).working_dir
@@ -17,7 +17,8 @@ class ReccurentNN:
                  hidden_activation: Callable = None,
                  output_activation: Callable = None,
                  loss_function: Callable = None,
-                 optimiser: Callable = None
+                 optimiser: Callable = None,
+                 name: str = 'rnn',
                  ) -> None:
         """Setting activation functions, loss function and optimiser"""
         if not hidden_activation:
@@ -37,24 +38,31 @@ class ReccurentNN:
         self._optimiser = optimiser
 
         """
-        Initialize weights and biases as None until properly 
-        initialized in fit() method
+        Initialize weights and biases as None until properly
+        initialized in fit() method.
+        xh = input  -> hidden
+        hh = hidden -> hidden
+        hy = hidden -> output
         """
-        self.w_x, self.w_rec, self.w_y = None,None,None
-        self.b_x, self.b_rec, self.b_y = None,None,None
+        self.w_xh, self.w_hh, self.w_hy = None, None, None
+        self.b_xh, self.b_hh, self.b_hy = None, None, None
+        self.xs = None
+        self.hs = None
+        self.ys = None
+        self.name = name
 
-    def _forward(self, x:np.array) -> np.array:
+    def _forward(self, x: np.array) -> np.array:
         """
-        Forward-pass method to be used in fit-method for training the 
+        Forward-pass method to be used in fit-method for training the
         RNN. Returns a predicted output value which is used to calculate
-        loss which is later used to adjust backpropagation for weight 
+        loss which is later used to adjust backpropagation for weight
         correction during training.
 
         Parameters:
         -------------------------------
         X : np.array
-        - sequence of numbers to be used for prediction 
-        
+        - sequence of numbers to be used for prediction
+
         w_x : np.array
         - input weights, from input layer to hidden layer
 
@@ -69,52 +77,88 @@ class ReccurentNN:
         y_predicted : np.array
         - predicted output values from each hidden state
         """
-        # print(x.shape)
         n_time_steps = x.shape[0]
-        # step_len = x.shape[1]
-        step_len = 1
-        # step len is thought to be the lenght of each time step
-        # print('Time_steps:', n_time_steps)
-        # h_layer_size = self.w_rec.shape[0]
-        h_states = np.zeros((n_time_steps, step_len))
-        # print('Shape of h_states:', h_states.shape)
-        # h_states = np.zeros((n_time_steps, (n_time_steps, batch_size)))
-        # print('Shape of x[0]:', x[0].shape)
-        # print('Shape of w_x:', self.w_x.shape)
-        z = x[0] @ self.w_x
-        # print('Shape of z:', z.shape)
+        step_len = x.shape[1]
+        self.hs = np.zeros((n_time_steps, step_len))
+        self.xs = np.zeros(x.shape)
+        z = x[0] @ self.w_xh
+        self.xs[0] = z
         h_t = self._hidden_activation(z)
-        # print('Shape of h_t:', h_t.shape)
-        h_states[0] = h_t
+        self.hs[0] = h_t
+        # self.h_outputs = self.hs  # dummy variable
         for t in range(1, n_time_steps):
-            inp = x[t] @ self.w_x
-            # print('Shape of inp:', inp.shape)
-            # print('Shape of h_states_-1:', h_states[t-1].shape)
-            # print('Shape of b_rec:', self.b_rec.shape)
-            # print('Shape of w_rec:', self.w_rec.shape)
-            h_weighted = h_states[t-1] @ self.w_rec
-            # print('Shape of h_weighted:', h_weighted.shape)
-            z = inp + h_weighted
-            # print('Shape of z:', z.shape)
+            x_weighted = x[t] @ self.w_xh
+            h_weighted = self.hs[t-1] @ self.w_hh
+            z = x_weighted + h_weighted
+            self.xs[t] = z
             h_t = self._hidden_activation(z)
-            # print('Shape of h_t:', h_t.shape)
-            # print('Shape of h_states:', h_states.shape)
-            h_states[t] = h_t
+            self.hs[t] = h_t
 
-        y_predicted = h_states @ self.w_y
-        print(y_predicted)
-        return self._output_activation(y_predicted)
+        self.outputs = self._output_activation(self.hs @ self.w_hy)
 
-    def _backward(self, y_estimate: np.ndarray) -> None:
-        pass
+        return self.outputs
+
+    def _backward(self, y_true, y_pred: np.ndarray) -> None:
+
+        self._loss(y_true, y_pred)  # set current loss
+
+        deltas_w_xh = np.zeros_like(self.w_xh.shape)  # np.zeros?
+        deltas_w_hh = np.zeros_like(self.w_hh.shape)  # np.zeros?
+        deltas_w_hy = np.zeros_like(self.w_hy.shape)  # np.zeros?
+        deltas_b_xh = np.zeros_like(self.b_xh.shape)
+        deltas_b_hh = np.zeros_like(self.b_hh.shape)
+        # deltas_b_hy = np.zeros_like(self.b_hy)
+        prev_dh = np.zeros_like(self.hs[0].shape)
+        y_pred[t] = softmax(y_pred[t])
+
+        for t in range(len(self.hs)-1, -1, -1):
+
+            """Fetch the loss of this time-step"""
+            d_loss = np.copy(y_pred[t])
+
+            """See deep learning book, 10.18 for
+            explanation of following line. Also:
+            http://cs231n.github.io/neural-networks-case-study/#grad"""
+            d_loss[y_true[t]] -= 1
+
+            """Adjustments to output weights is simple the derivative of
+            the cost function with respect to the output weights"""
+            deltas_w_hy += d_loss[t] @ self.hs[t]
+
+            """A h_state's gradient update are both influenced by the
+            next h_state at time t+1, as well as the output at time t.
+            The cost of the current output derivated with respect to hidden
+            state t is what makes up the following line before the "+ sign".
+            hidden state. After "+" is the influence from previous hidden
+            states and their outputs."""
+            dh = d_loss @ self.w_hy + prev_dh
+
+            """ The following line is to shorten equations. It fetches the
+            gradient of hidden state t."""
+            d_act = self._loss_function.grad(self.hs[t])
+
+            """Cumulate the error"""
+            deltas_w_hh += dh @ d_act @ self.hs[t-1]
+            deltas_w_xh += dh @ d_act @ self.xs[t]
+
+            """Pass on the bits of the chain rule to the calculation of
+            the previous hidden state update"""
+            prev_dh = d_act @ self.w_hh @ dh
+
+            # Biases:
+            deltas_b_hy += d_loss * 1
+            deltas_b_hh += dh @ d_act
+            # deltas_b_xh +=
+
+        ret = deltas_w_hh, deltas_w_hy, deltas_b_xh, deltas_b_hh, deltas_b_hy
+        return ret  # or update weights?
 
     def fit(self,
             X: np.ndarray,
             y: np.ndarray,
             epochs: int,
-            improvement_threshold: float|int,
+            improvement_threshold: float | int,
             # early_stopping_params,
-            optimization_algorithm: str = None
             ) -> None:
         """
         Method for training the RNN, iteratively runs _forward(), 
@@ -125,18 +169,18 @@ class ReccurentNN:
 
         Parameters:
         -------------------------------
-        X : np.array 
+        X : np.array
         - input sequence, sequence elements may be scalars
           or vectors.
-        
-        y : np.array 
+
+        y : np.array
         - true output values to compare predicted results
           against to calculate loss.
-        
-        epochs: int 
+
+        epochs: int
         - number of epochs to train for.
 
-        improvement_threshold : float | int 
+        improvement_threshold : float | int
         - threshold for minimum improvement per epoch before early exit
 
         optimization_algorithm : str
@@ -147,54 +191,43 @@ class ReccurentNN:
         None
         """
 
-        input_size = X.shape[-1]
-        hidden_size = X.shape[-1]
+        # Fetch the inner dimension (-1), which corresponds to the length
+        # of each time step in a sequence, if that makes sense?
+        time_step_len = X.shape[-1]
+        hidden_size = time_step_len
+        output_size = y.shape[1]  # this may not be correct
 
-        output_size = y.shape[1]
+        # TODO: move these to a function and add random configurability
+        self.w_xh = np.random.randn(time_step_len, time_step_len)*0.01
+        self.w_hh = np.random.randn(time_step_len, time_step_len)*0.01
+        self.w_hy = np.random.randn(time_step_len, time_step_len)*0.01
+        # TODO: move these to a function and add random configurability
+        self.b_xh = np.random.randn(1)
+        self.b_hh = np.random.randn(time_step_len, 1)
+        self.b_hy = np.random.randn(output_size, hidden_size)
 
-        # weight input -> hidden.
-        self.w_x = np.random.randn(input_size, input_size)*0.01
-        # weight hidden -> hidden
-        self.w_rec = np.random.randn(input_size, input_size)*0.01
-        # weight hidden -> output
-        self.w_y = np.random.randn(output_size, input_size)*0.01
+        # Do a forward pass, return outputs from each hidden state
+        y_pred = self._forward(X[0])
 
-        # bias input -> hidden.
-        self.b_x = np.random.randn(1)
-        # bias hidden -> hidden.
-        self.b_rec = np.random.randn(input_size, 1)
-        # bias hidden -> output.
-        self.b_y = np.random.randn(output_size, hidden_size)
-
-        # Do a forward pass, return outputs from each hidden state 
-        # and all current weights and biases
-        y_predicted = self._forward(X[0])
         # Find current loss from predicted output values
-        loss = self._loss(y, y_predicted)
-
+        # loss = self._loss(y, y_predicted)
+        # exit()
         for e in range(epochs):
+            if e >= X.shape[0]:  # temporary
+                break
             # Do a backprogation and adjust current weights and biases to 
             # improve loss, return new improved weights and biases
-        # self.w_xh, self.w_hh, self.w_hy, self.b_x, self.b_rec, \
-        # self.b_y \ = self._backward(loss)                                             #Maybe return weights and biases in two tuples of three instead??? Might be a lot cleaner                    
+            self._backward(y[e], y_pred)
             # Do a forward pass with new weights, return outputs from 
             # each hidden state and all the weights and biases
-            y_predicted = self._forward(X[e])
+            y_pred = self._forward(X[e])
             # Predict the current loss with used weights and biases
-            loss = self._loss(y, y_predicted)
+            print(y_pred)
+            # TODO: add stopping criterias
 
-            # Calculate improvement, the rate or amount of the network
-            # improves per epoch
-            improvement = None                                                 #INSERT gradient thingy or improvement measure here
-            # Check if improvement is significant enough according to the
-            # set threshold, if not break and do an early exit
-            if improvement < improvement_threshold:
-                break
-        
-        read_load_model.save_model(self, "saved_models/", "RNN_model")         #Maybe have model/filename as a parameter? 
+        read_load_model.save_model(self, 'saved_models/', self.name) 
 
-
-    def predict(self, X : np.ndarray) -> np.ndarray:
+    def predict(self, X: np.ndarray) -> np.ndarray:
         """
         Predicts the next value in a sequence of given inputs to the RNN
         network
@@ -210,3 +243,6 @@ class ReccurentNN:
         - Predicted next value for the given input sequence
         """
         return self._forward(X)[-1]
+
+    def update_weights(self):
+        pass
