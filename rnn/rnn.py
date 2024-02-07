@@ -31,7 +31,7 @@ class ReccurentNN:
 
         if not loss_function:
             loss_function = mse()
-        self._loss = loss_function
+        self._loss_function = loss_function
 
         if not optimiser:
             optimiser = Adam()
@@ -100,22 +100,24 @@ class ReccurentNN:
 
     def _backward(self, y_true, y_pred: np.ndarray) -> None:
 
-        self._loss(y_true, y_pred)  # set current loss
+        self._loss_function(y_true, y_pred)  # set current loss
 
-        deltas_w_xh = np.zeros_like(self.w_xh.shape)  # np.zeros?
-        deltas_w_hh = np.zeros_like(self.w_hh.shape)  # np.zeros?
-        deltas_w_hy = np.zeros_like(self.w_hy.shape)  # np.zeros?
-        deltas_b_xh = np.zeros_like(self.b_xh.shape)
-        deltas_b_hh = np.zeros_like(self.b_hh.shape)
-        # deltas_b_hy = np.zeros_like(self.b_hy)
+        deltas_w_xh = np.zeros_like(self.w_xh, dtype=float)  # np.zeros?
+        deltas_w_hh = np.zeros_like(self.w_hh, dtype=float)  # np.zeros?
+        deltas_w_hy = np.zeros_like(self.w_hy, dtype=float)  # np.zeros?
+
+        deltas_b_xh = np.zeros_like(self.b_xh, dtype=float)
+        deltas_b_hh = np.zeros_like(self.b_hh, dtype=float)
+        deltas_b_hy = np.zeros_like(self.b_hy)
         prev_dh = np.zeros_like(self.hs[0].shape)
-        y_pred[t] = softmax(y_pred[t])
+        # y_pred[t] = softmax(y_pred[t])
 
         for t in range(len(self.hs)-1, -1, -1):
 
             """Fetch the loss of this time-step"""
             d_loss = np.copy(y_pred[t])
-
+            print(d_loss)
+            print(d_loss[0])
             """See deep learning book, 10.18 for
             explanation of following line. Also:
             http://cs231n.github.io/neural-networks-case-study/#grad"""
@@ -123,7 +125,8 @@ class ReccurentNN:
 
             """Adjustments to output weights is simple the derivative of
             the cost function with respect to the output weights"""
-            deltas_w_hy += d_loss[t] @ self.hs[t]
+
+            deltas_w_hy += d_loss @ self.hs[t]
 
             """A h_state's gradient update are both influenced by the
             next h_state at time t+1, as well as the output at time t.
@@ -135,11 +138,11 @@ class ReccurentNN:
 
             """ The following line is to shorten equations. It fetches the
             gradient of hidden state t."""
-            d_act = self._loss_function.grad(self.hs[t])
+            d_act = self._hidden_activation.grad(self.hs[t])
 
             """Cumulate the error"""
-            deltas_w_hh += dh @ d_act @ self.hs[t-1]
-            deltas_w_xh += dh @ d_act @ self.xs[t]
+            deltas_w_hh += dh @ d_act * self.hs[t-1]
+            deltas_w_xh += dh @ d_act * self.xs[t]
 
             """Pass on the bits of the chain rule to the calculation of
             the previous hidden state update"""
@@ -148,7 +151,7 @@ class ReccurentNN:
             # Biases:
             deltas_b_hy += d_loss * 1
             deltas_b_hh += dh @ d_act
-            # deltas_b_xh +=
+            deltas_b_xh += 0  # change this
 
         ret = deltas_w_hh, deltas_w_hy, deltas_b_xh, deltas_b_hh, deltas_b_hy
         return ret  # or update weights?

@@ -9,8 +9,9 @@ sys.path.append(path_to_root)
 
 rnn = ReccurentNN(Relu())
 y_true = np.array([[1, 3, 2, 4, 5], [3, 2, 4, 1, 5]])
-# y_true = np.ones((3, 26))
-x = np.ones((3, 3, 1))
+x = np.array([[[0, 1, 3, 2, 4]], [[0, 3, 2, 4, 1]]], dtype=float)
+# y_true = np.ones((2, 26))
+# x = np.ones((2, 3, 1))
 rnn.fit(x, y_true, 100, 0.1)
 
 # print(np.array([1,1]).reshape(-1,1).shape)

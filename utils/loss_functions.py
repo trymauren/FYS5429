@@ -36,6 +36,7 @@ class Mean_Square_Loss(LossFunction):
             # The thought is that we are using batches for training
             return 2*self.loss / self.y_pred.shape[1]  # this may be wrong
 
+
 class Classification_Logloss(LossFunction):
 
     def __init__(self, n_classes):

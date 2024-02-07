@@ -39,7 +39,7 @@ class Relu(Activation):
 
     def grad(self, a):
         """Decided on using f'(0)=1. Could do f'(0)=0 instead"""
-        return 1 if a >= 0 else 0
+        return np.array([1 if i >= 0 else 0 for i in a])
 
 
 class Tanh(Activation):
