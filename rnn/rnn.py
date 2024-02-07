@@ -134,7 +134,7 @@ class ReccurentNN:
             state t is what makes up the following line before the "+ sign".
             hidden state. After "+" is the influence from previous hidden
             states and their outputs."""
-            dh = d_loss @ self.w_hy + prev_dh   #Loss of current hidden state with regards to this states output and previous (next in forward pass) states influence on loss
+            dh = d_loss @ self.w_hy + prev_dh   #Weight adjustment needed for current hidden state with regards to this states output and previous (next in forward pass) states influence on loss
 
             """ The following line is to shorten equations. It fetches the
             gradient of hidden state t."""
