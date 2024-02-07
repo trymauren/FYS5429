@@ -70,9 +70,26 @@ class Sigmoid(Activation):
 
     def grad(self, a):
         """
-        Assume z is the output from sigmoid(z)! or else the
+        Assume a is the output from sigmoid(z)! or else the
         derivative must be calculated differently
         """
         return a*(1 - a)
+
+class Softmax(Activation):
+
+    def __init__(self):
+        super().__init()
+    
+    def eval(self, z):
+        softmax = np.exp(z)/np.sum(np.exp(z))
+        return softmax
+    
+    def grad(self,a):
+        """
+        Assume a is the output from softmax(z)! or else the
+        derivative must be calculated differently
+        """
+        s = a.reshape(-1,1)
+        return np.diagflat(s) - np.dot(s, s.T)
 
 
