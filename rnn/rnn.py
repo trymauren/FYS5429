@@ -123,26 +123,27 @@ class ReccurentNN:
             http://cs231n.github.io/neural-networks-case-study/#grad"""
             d_loss[y_true[t]] -= 1
 
-            """Adjustments to output weights is simple the derivative of
+            """Adjustments to output weights is simple; the derivative of
             the cost function with respect to the output weights"""
 
-            deltas_w_hy += d_loss @ self.hs[t]
+            deltas_w_hy += d_loss @ self.hs[t] #Adjustment amount of output weights (accumulates over time to get final adjustment after all time has passed)
 
             """A h_state's gradient update are both influenced by the
             next h_state at time t+1, as well as the output at time t.
-            The cost of the current output derivated with respect to hidden
+            The cost/loss of the current output derivated with respect to hidden
             state t is what makes up the following line before the "+ sign".
             hidden state. After "+" is the influence from previous hidden
             states and their outputs."""
-            dh = d_loss @ self.w_hy + prev_dh
+            dh = d_loss @ self.w_hy + prev_dh   #Weight adjustment needed for current hidden state with regards to this states output and previous (next in forward pass) states influence on loss
 
             """ The following line is to shorten equations. It fetches the
             gradient of hidden state t."""
-            d_act = self._hidden_activation.grad(self.hs[t])
+            d_act = self._hidden_activation.grad(self.hs[t]) #Gradient of current hidden state, to be used to adjust recurrent and input weights alongside dh which is adjustment amount 
+                                                             #influenced by current hidden states output and previous hidden states (????????????????)
 
-            """Cumulate the error"""
-            deltas_w_hh += dh @ d_act * self.hs[t-1]
-            deltas_w_xh += dh @ d_act * self.xs[t]
+            """Cumulate the error."""
+            deltas_w_hh += dh @ d_act * self.hs[t-1] #Adjustment amount of hidden (recurrent) weights (accumulates over time to get final amount after all time has passed)
+            deltas_w_xh += dh @ d_act * self.xs[t] #Adjustment amount of input weights (accumulates over time to get final amount after all time has passed)
 
             """Pass on the bits of the chain rule to the calculation of
             the previous hidden state update"""
