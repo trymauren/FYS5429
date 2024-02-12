@@ -1,9 +1,8 @@
 import git
-import importlib
 import sys
+from testing import tests
 path_to_root = git.Repo('.', search_parent_directories=True).working_dir
 sys.path.append(path_to_root)
-from testing import tests
 
 
 tests.test_activations()
