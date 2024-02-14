@@ -78,7 +78,7 @@ class Sigmoid(Activation):
 class Softmax(Activation):
 
     def __init__(self):
-        super().__init()
+        super().__init__()
     
     def eval(self, z):
         softmax = np.exp(z)/np.sum(np.exp(z))
@@ -91,5 +91,12 @@ class Softmax(Activation):
         """
         s = a.reshape(-1,1)
         return np.diagflat(s) - np.dot(s, s.T)
+
+soft = Softmax()
+data = [1/np.e,1/np.e,1/np.e]
+eval = soft.eval(data)
+print(eval)
+grad = soft.grad(eval)
+print(grad)
 
 
