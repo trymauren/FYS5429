@@ -86,7 +86,7 @@ The only nodes that need gradient computation now, are all the hidden states pre
 %     \nabla_{\mathbf{h}^{(t-1)}} C &= \nabla_{\mathbf{h}^{(t)}} C \frac{\delta}{\delta} + V^{\top}\left(\nabla_{\mathbf{o}^{(t-1)}}C\right)
 % \end{align}
 
-\begin{align*}
+\begin{align}
     \nabla_{\mathbf{h}^{(\tau-1)}} C &= \color{blue}\nabla_{\mathbf{o}^{(\tau-1)}}C \frac{\delta \mathbf{o}^{(\tau-1)}}{\delta \mathbf{h}^{(\tau-1)}} + \nabla_{\mathbf{h}^{(\tau)}}C \frac{\delta \mathbf{h}^{(\tau)}}{\delta \mathbf{h}^{(\tau-1)}} \\
     \nabla_{\mathbf{h}^{(\tau-2)}} C &= \color{red}\nabla_{\mathbf{o}^{(\tau-2)}}C \frac{\delta \mathbf{o}^{(\tau-2)}}{\delta \mathbf{h}^{(\tau-2)}} + \color{blue}\nabla_{\mathbf{h}^{(\tau-1)}}C \color{red} \frac{\delta \mathbf{h}^{(\tau-1)}}{\delta \mathbf{h}^{(\tau-2)}} \\
     \nabla_{\mathbf{h}^{(\tau-3)}} C &= \nabla_{\mathbf{o}^{(\tau-3)}}C \frac{\delta \mathbf{o}^{(\tau-3)}}{\delta \mathbf{h}^{(\tau-3)}} + \color{red}\nabla_{\mathbf{h}^{(\tau-2)}}C \color{black} \frac{\delta \mathbf{h}^{(\tau-2)}}{\delta \mathbf{h}^{(\tau-3)}} \\
@@ -94,7 +94,7 @@ The only nodes that need gradient computation now, are all the hidden states pre
     &= \nabla_{\mathbf{o}^{(\tau-3)}}C \frac{\delta \mathbf{o}^{(\tau-3)}}{\delta \mathbf{h}^{(\tau-3)}} + \color{red}\left(\nabla_{\mathbf{o}^{(\tau-2)}}C \frac{\delta \mathbf{o}^{(\tau-2)}}{\delta \mathbf{h}^{(\tau-2)}} + \color{blue}\left(\color{blue}\nabla_{\mathbf{o}^{(\tau-1)}}C \frac{\delta \mathbf{o}^{(\tau-1)}}{\delta \mathbf{h}^{(\tau-1)}} + \nabla_{\mathbf{h}^{(\tau)}}C \frac{\delta \mathbf{h}^{(\tau)}}{\delta \mathbf{h}^{(\tau-1)}} \right)\color{red} \frac{\delta \mathbf{h}^{(\tau-1)}}{\delta \mathbf{h}^{(\tau-2)}} \right) \color{black} \frac{\delta \mathbf{h}^{(\tau-2)}}{\delta \mathbf{h}^{(\tau-3)}} \\
     % &= \nabla_{\mathbf{o}^{(\tau-2)}}C \frac{\delta \mathbf{o}^{(\tau-2)}}{\delta \mathbf{h}^{(\tau-2)}} + \color{blue}\left(\nabla_{\mathbf{o}^{(\tau-1)}}C \frac{\delta \mathbf{o}^{(\tau-1)}}{\delta \mathbf{h}^{(\tau-1)}} + \nabla_{\mathbf{h}^{(\tau)}}C \frac{\delta \mathbf{h}^{(\tau)}}{\delta \mathbf{h}^{(\tau-1)}}\right)\color{black}\frac{\delta \mathbf{h}^{(\tau-1)}}{\delta \mathbf{h}^{(\tau-2)}}
     % \nabla_{\mathbf{h}^{(0)}} C &= \nabla_{\mathbf{o}^{(0)}}C + \nabla_{\mathbf{h}^{(\tau-3)}}C \\
-\end{align*}
+\end{align}
 % We can see that there is a repeating pattern. The \color{red}red \color{black} term \color{red}$\nabla_{\mathbf{h}^{(\tau-2)}} C$\color{black}
 
 
