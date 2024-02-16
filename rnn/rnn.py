@@ -128,13 +128,13 @@ class ReccurentNN:
 
             deltas_w_hy += d_loss @ self.hs[t] #Adjustment amount of output weights (accumulates over time to get final adjustment after all time has passed)
 
-            """A h_state's gradient update are both influenced by the
+            """A h_state's weight update are both influenced by the
             next h_state at time t+1, as well as the output at time t.
             The cost/loss of the current output derivated with respect to hidden
             state t is what makes up the following line before the "+ sign".
-            hidden state. After "+" is the influence from previous hidden
+            After "+" is the influence from previous hidden
             states and their outputs."""
-            dh = d_loss @ self.w_hy + prev_dh   #Weight adjustment needed for current hidden state with regards to this states output and previous (next in forward pass) states influence on loss
+            dh = d_loss @ self.w_hy + prev_dh   #weight adjustment for current hidden state with regards to this states output and previous (next in forward pass) state
 
             """ The following line is to shorten equations. It fetches the
             gradient of hidden state t."""
@@ -154,9 +154,13 @@ class ReccurentNN:
             deltas_b_hh += dh @ d_act
             deltas_b_xh += 0  # change this
 
-        ret = deltas_w_hh, deltas_w_hy, deltas_b_xh, deltas_b_hh, deltas_b_hy
-        return ret  # or update weights?
-
+        self.w_xh -= deltas_w_xh
+        self.w_hh -= deltas_w_hh
+        self.w_hy -= deltas_w_hy
+        self.b_xh -= deltas_b_xh
+        self.b_hh -= deltas_b_hh
+        self.b_hy -= deltas_b_hy
+        
     def fit(self,
             X: np.ndarray,
             y: np.ndarray,
