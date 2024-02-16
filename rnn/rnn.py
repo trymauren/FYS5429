@@ -1,14 +1,13 @@
 import sys
 import git
 import numpy as np
+from collections.abc import Callable
+path_to_root = git.Repo('.', search_parent_directories=True).working_dir
+sys.path.append(path_to_root)
 from utils.activations import Relu, Tanh
 from utils.loss_functions import Mean_Square_Loss as mse
 from utils.optimisers import Adam
 from utils import read_load_model
-from collections.abc import Callable
-
-path_to_root = git.Repo('.', search_parent_directories=True).working_dir
-sys.path.append(path_to_root)
 
 
 class ReccurentNN:
@@ -51,32 +50,18 @@ class ReccurentNN:
         self.ys = None
         self.name = name
 
-    def _forward(self, x: np.array) -> np.array:
+    def _forward(self, x: np.array):
         """
         Forward-pass method to be used in fit-method for training the
-        RNN. Returns a predicted output value which is used to calculate
-        loss which is later used to adjust backpropagation for weight
-        correction during training.
+        RNN. Returns predicted output values
 
         Parameters:
         -------------------------------
         X : np.array
         - sequence of numbers to be used for prediction
 
-        w_x : np.array
-        - input weights, from input layer to hidden layer
-
-        w_rec : np.array
-        - recurrent weights, from hidden layer back onto itself
-
-        w_y : np.array
-        - output weights, from hidden layer to output layer
-
-        Returns:
-        -------------------------------
-        y_predicted : np.array
-        - predicted output values from each hidden state
         """
+
         n_time_steps = x.shape[0]
         step_len = x.shape[1]
         self.hs = np.zeros((n_time_steps, step_len))
@@ -94,68 +79,83 @@ class ReccurentNN:
             h_t = self._hidden_activation(z)
             self.hs[t] = h_t
 
-        self.outputs = self._output_activation(self.hs @ self.w_hy)
-
-        return self.outputs
+        self.ys = self._output_activation(self.hs @ self.w_hy)
+        return self.ys
 
     def _backward(self, y_true, y_pred: np.ndarray) -> None:
 
-        self._loss_function(y_true, y_pred)  # set current loss
+        # Set current loss. Not appliccable anymore?
+        self._loss_function(y_true, y_pred)
 
         deltas_w_xh = np.zeros_like(self.w_xh, dtype=float)  # np.zeros?
         deltas_w_hh = np.zeros_like(self.w_hh, dtype=float)  # np.zeros?
         deltas_w_hy = np.zeros_like(self.w_hy, dtype=float)  # np.zeros?
 
-        deltas_b_xh = np.zeros_like(self.b_xh, dtype=float)
+        # deltas_b_xh = np.zeros_like(self.b_xh, dtype=float)
         deltas_b_hh = np.zeros_like(self.b_hh, dtype=float)
         deltas_b_hy = np.zeros_like(self.b_hy)
-        prev_dh = np.zeros_like(self.hs[0].shape)
+        prev_grad_h_C = np.zeros_like(self.hs[0].shape)
         # y_pred[t] = softmax(y_pred[t])
 
+        # BACKPROPAGATION THROUGH TIME (BPTT):
         for t in range(len(self.hs)-1, -1, -1):
 
-            """Fetch the loss of this time-step"""
-            d_loss = np.copy(y_pred[t])
-            print(d_loss)
-            print(d_loss[0])
+            """ BELOW IS CALCULATION OF GRADIENTS W/RESPECT TO HIDDEN_STATES
+            - SEE (1-~20) IN TEX-DOCUMENT """
+
+            """Just doing some copying. grad_o_Cost will, in the next
+            line of code, contain the cost vector"""
+            grad_o_Cost = np.copy(y_pred[t])
+
             """See deep learning book, 10.18 for
             explanation of following line. Also:
-            http://cs231n.github.io/neural-networks-case-study/#grad"""
-            d_loss[y_true[t]] -= 1
-
-            """Adjustments to output weights is simple; the derivative of
-            the cost function with respect to the output weights"""
-
-            deltas_w_hy += d_loss @ self.hs[t] #Adjustment amount of output weights (accumulates over time to get final adjustment after all time has passed)
+            http://cs231n.github.io/neural-networks-case-study/#grad
+            Eventually, one can find grad(C) w/ respect to C^t"""
+            grad_o_Cost[y_true[t]] -= 1
 
             """A h_state's gradient update are both influenced by the
-            next h_state at time t+1, as well as the output at time t.
-            The cost/loss of the current output derivated with respect to hidden
-            state t is what makes up the following line before the "+ sign".
-            hidden state. After "+" is the influence from previous hidden
-            states and their outputs."""
-            dh = d_loss @ self.w_hy + prev_dh   #Weight adjustment needed for current hidden state with regards to this states output and previous (next in forward pass) states influence on loss
+            preceding h_state at time t+1, as well as the output at
+            time t. The cost/loss of the current output derivated with
+            respect to hidden state t is what makes up the following
+            line before the "+ sign". After "+" is the gradient through
+            previous hidden states and their outputs. This term after
+            the "+" sign, is 0 for first step of BPTT.
 
-            """ The following line is to shorten equations. It fetches the
-            gradient of hidden state t."""
-            d_act = self._hidden_activation.grad(self.hs[t]) #Gradient of current hidden state, to be used to adjust recurrent and input weights alongside dh which is adjustment amount 
-                                                             #influenced by current hidden states output and previous hidden states (????????????????)
+            Eq. 16 in tex-document(see also eq. 15 for first iteration of BPPT)
+            Eq. 10.20 in DLB"""
+            grad_h_C = grad_o_Cost @ self.w_hy + prev_grad_h_C
+
+            """The following line is to shorten equations. It fetches/
+            differentiates the hidden activation function."""
+            d_act = self._hidden_activation.grad(self.hs[t])
+
+            """ BELOW IS CALCULATION OF GRADIENT W/RESPECT TO WEIGHTS """
 
             """Cumulate the error."""
-            deltas_w_hh += dh @ d_act * self.hs[t-1] #Adjustment amount of hidden (recurrent) weights (accumulates over time to get final amount after all time has passed)
-            deltas_w_xh += dh @ d_act * self.xs[t] #Adjustment amount of input weights (accumulates over time to get final amount after all time has passed)
+            deltas_w_hy += grad_o_Cost @ self.hs[t]         # 10.24 in DLB
+            deltas_w_hh += grad_h_C @ d_act * self.hs[t-1]  # 10.26 in DLB
+            deltas_w_xh += grad_h_C @ d_act * self.xs[t]    # 10.28 in DLB
 
             """Pass on the bits of the chain rule to the calculation of
-            the previous hidden state update"""
-            prev_dh = d_act @ self.w_hh @ dh
+            the previous hidden state update
+
+            This line equals the first part of eq. 10.21 in DLB
+            To emphasize: before the "+" sign in 10.21 in DLB"""
+            prev_grad_h_C = d_act @ self.w_hh @ grad_h_C
 
             # Biases:
-            deltas_b_hy += d_loss * 1
-            deltas_b_hh += dh @ d_act
-            deltas_b_xh += 0  # change this
+            deltas_b_hy += grad_o_Cost * 1     # 10.22 in DLB
+            deltas_b_hh += grad_h_C @ d_act    # 10.22 in DLB
+            # deltas_b_xh += 0                   # no bias on input right?
 
-        ret = deltas_w_hh, deltas_w_hy, deltas_b_xh, deltas_b_hh, deltas_b_hy
-        return ret  # or update weights?
+        # Weight updates:
+        self.w_hy += deltas_w_hy
+        self.w_hh += deltas_w_hh
+        self.w_xh += deltas_w_xh
+        # Bias updates
+        self.w_hy += deltas_b_hy
+        self.w_hh += deltas_b_hh
+        # self.w_xh += deltas_b_xh
 
     def fit(self,
             X: np.ndarray,
@@ -165,10 +165,10 @@ class ReccurentNN:
             # early_stopping_params,
             ) -> None:
         """
-        Method for training the RNN, iteratively runs _forward(), 
-        _loss(), and _backwards() to predict values, find loss and 
+        Method for training the RNN, iteratively runs _forward(),
+        _loss(), and _backwards() to predict values, find loss and
         adjust weights until a given number of training epochs has been
-        reached or the degree of improvement between epochs is below a 
+        reached or the degree of improvement between epochs is below a
         set threshold.
 
         Parameters:
@@ -210,26 +210,21 @@ class ReccurentNN:
         self.b_hh = np.random.randn(time_step_len, 1)
         self.b_hy = np.random.randn(output_size, hidden_size)
 
-        # Do a forward pass, return outputs from each hidden state
+        # Do a forward pass
         y_pred = self._forward(X[0])
 
-        # Find current loss from predicted output values
-        # loss = self._loss(y, y_predicted)
-        # exit()
         for e in range(epochs):
             if e >= X.shape[0]:  # temporary
                 break
-            # Do a backprogation and adjust current weights and biases to 
+            # Do a backprogation and adjust current weights and biases to
             # improve loss, return new improved weights and biases
             self._backward(y[e], y_pred)
-            # Do a forward pass with new weights, return outputs from 
+            # Do a forward pass with new weights, return outputs from
             # each hidden state and all the weights and biases
             y_pred = self._forward(X[e])
-            # Predict the current loss with used weights and biases
-            print(y_pred)
-            # TODO: add stopping criterias
 
-        read_load_model.save_model(self, 'saved_models/', self.name) 
+            # TODO: add stopping criterias
+        read_load_model.save_model(self, 'saved_models/', self.name)
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         """
@@ -247,6 +242,3 @@ class ReccurentNN:
         - Predicted next value for the given input sequence
         """
         return self._forward(X)[-1]
-
-    def update_weights(self):
-        pass
