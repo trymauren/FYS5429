@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.special import expit # used for sigmoid
+from scipy.special import expit  # used for sigmoid
 from abc import abstractmethod
 # https://dustinstansbury.github.io/theclevermachine/derivation-common-neural-network-activation-functions
 
@@ -75,28 +75,27 @@ class Sigmoid(Activation):
         """
         return a*(1 - a)
 
+
 class Softmax(Activation):
 
     def __init__(self):
         super().__init__()
-    
+
     def eval(self, z):
         softmax = np.exp(z)/np.sum(np.exp(z))
         return softmax
-    
-    def grad(self,a):
+
+    def grad(self, a):
         """
         Assume a is the output from softmax(z)! or else the
         derivative must be calculated differently
         """
-        s = a.reshape(-1,1)
+        s = a.reshape(-1, 1)
         return np.diagflat(s) - np.dot(s, s.T)
 
-soft = Softmax()
-data = [1/np.e,1/np.e,1/np.e]
-eval = soft.eval(data)
-print(eval)
-grad = soft.grad(eval)
-print(grad)
-
-
+# soft = Softmax()
+# data = [1/np.e,1/np.e,1/np.e]
+# eval = soft.eval(data)
+# print(eval)
+# grad = soft.grad(eval)
+# print(grad)
