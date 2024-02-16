@@ -1,0 +1,116 @@
+\documentclass[12pt]{article}
+\usepackage{geometry}
+ \geometry{
+ a4paper,
+ total={170mm,257mm},
+ left=20mm,
+ top=20mm,
+ }
+
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage[backend=biber, style=apa]{biblatex}
+
+\usepackage{mathtools}
+
+\usepackage{acronym}
+
+\usepackage[nameinlink,noabbrev]{cleveref} % nice for referencing
+
+
+\crefname{equation}{equation}{equations}
+\Crefname{equation}{Equation}{Equations}
+\crefname{table}{table}{tables}
+\Crefname{table}{Table}{Tables}
+\crefname{figure}{fig.}{figures}
+\Crefname{figure}{Fig.}{Figures}
+
+\title{Tittel}
+\author{Forfatter}
+\date{}
+
+
+\begin{document}
+
+\maketitle
+
+\section{Backpropagation through time - BPTT}
+
+
+Definitions:
+\begin{align}
+    \mathbf{a}^{(t)} &= \mathbf{b + Wh^{(t-1)} + Ux^{(t)}} \\
+    \mathbf{h}^{(t)} &= activation(\mathbf{a}^{(t)})\\
+    \mathbf{o}^{(t)} &= \mathbf{c + Vh}^{(t)} \\
+    \mathbf{\hat{y}}^{(t)} &= softmax(\mathbf{o}^{(t)}) \\
+    \mathbf{U} &= \text{input weights} \\
+    \mathbf{W} &= \text{hidden weights} \\
+    \mathbf{V} &= \text{output weights}
+\end{align}
+
+
+The goal is to maximize the probability of the observed data by estimating parameters. The estimated parameters yielding the highest maximum likelihood are called the maximum likelihood estimates. These parameters can be obtained by minimizing the cross-entropy between the model distribution and the data. %To ease calculations, and because of the concavity of the problem, we derive the following cost-function:
+This cross-entropy function can be seen in (8), giving rise to the cost function in (10).
+\begin{align}
+    &C\left(\{\mathbf{x}^{(1)},...,\mathbf{x}^{(\tau)}\}, \{\mathbf{y}^{(1)},...,\mathbf{y}^{(\tau)}\}\right) \\
+    &= \sum_t L^{(t)} \\
+    &= -\sum_t log\;p\left(y^{(t)}|\{\mathbf{x}^{(1)},...,\mathbf{x}^{(t)}\}\right) \\
+\end{align}
+Note: $\quad y^{(t)} \;\;$ is an entry in the output vector $\;\; \mathbf{\hat{y}}^{(t)}$ \par
+The cost function is the negative log-likelihood function. Minimising this function is the same as maximum the likelihood of the parameters - not due to the log, but due to the negative prefix. The log in log-likelihood works, but I dont know why it is used? \par
+Below we derive the gradients of the nodes in the computational grap from deep learning book.
+\par
+The gradient of the cost function at the output, $\mathbf{o}$, at time \textit{t} is
+\begin{align}
+    \nabla_{\mathbf{o}^{(t)}} C &= \frac{\delta C}{\delta o^{(t)}}
+    = \frac{\delta C}{\delta C^{(t)}}\frac{\delta C^{(t)}}{\delta o^{(t)}}
+    = \hat{y}^{(t)} - \mathbf{1}_{i=y^{(t)}}
+    % \text{i is indices in $\hat{y}^{(t)}$. The predicate at the end of the previous line makes sence if one considers for example the $\hat{y}^{(t)}$ consisting of probabilities for all the different characters.}
+\end{align}
+
+
+The gradient of the final hidden state, $\mathbf{h}^{(\tau)}$, is only influenced by $\mathbf{o}^{(\tau)}$, since there are no descending hidden states. It is given by
+\begin{align}
+    \nabla_{\mathbf{h}^{(\tau)}} C &= \left(\nabla_{\mathbf{o}^{(\tau)}}C\right) \frac{\delta \mathbf{o}^{(\tau)}}{\delta \mathbf{h}^{(\tau)}}\\
+    &= \left(\nabla_{\mathbf{o}^{(\tau)}}C\right) \mathbf{V}\\
+    \nabla_{\mathbf{h}^{(\tau)}} C &= \mathbf{V}^{\top} \left(\nabla_{\mathbf{o}^{(\tau)}}C\right)
+    % \nabla_{\mathbf{h}{(\tau)}} C &= \mathbf{V}^{\top}\left(\hat{y}^{(\tau)} - \mathbf{1}_{i=y^{(\tau)}}\right) \\
+\end{align}
+Where all the right hand side terms are known from before. \par
+
+The only nodes that need gradient computation now, are all the hidden states preceding the last. I.e., for $\mathbf{h}^{(t)}$, where $t = \{0,...,\tau-1\}$. The gradient is now a result of both the gradient at $\mathbf{o}^{(t)}$, as well as all the preceding hidden state gradients. Remember that the preceding hidden state of $\mathbf{h}^{(t)}$ is $\mathbf{h}^{(t+1)}$, which has preceding hidden state $\mathbf{h}^{(t+2)}$, and so on. We are generally calculating the gradient starting from $t=\tau$, working our way down to $t=0$. \par
+% \begin{align}
+%     \shortintertext{Denne linja kan være veldig feil}
+%     \nabla_{\mathbf{h}^{(t-1)}} C &= \nabla_{\mathbf{h}^{(t)}} C + \nabla_{\mathbf{o}^{(t-1)}}C \\ 
+%     \nabla_{\mathbf{h}^{(t-1)}} C &= \nabla_{\mathbf{h}^{(t)}} C \frac{\delta}{\delta} + V^{\top}\left(\nabla_{\mathbf{o}^{(t-1)}}C\right)
+% \end{align}
+
+\begin{align*}
+    \nabla_{\mathbf{h}^{(\tau-1)}} C &= \color{blue}\nabla_{\mathbf{o}^{(\tau-1)}}C \frac{\delta \mathbf{o}^{(\tau-1)}}{\delta \mathbf{h}^{(\tau-1)}} + \nabla_{\mathbf{h}^{(\tau)}}C \frac{\delta \mathbf{h}^{(\tau)}}{\delta \mathbf{h}^{(\tau-1)}} \\
+    \nabla_{\mathbf{h}^{(\tau-2)}} C &= \color{red}\nabla_{\mathbf{o}^{(\tau-2)}}C \frac{\delta \mathbf{o}^{(\tau-2)}}{\delta \mathbf{h}^{(\tau-2)}} + \color{blue}\nabla_{\mathbf{h}^{(\tau-1)}}C \color{red} \frac{\delta \mathbf{h}^{(\tau-1)}}{\delta \mathbf{h}^{(\tau-2)}} \\
+    \nabla_{\mathbf{h}^{(\tau-3)}} C &= \nabla_{\mathbf{o}^{(\tau-3)}}C \frac{\delta \mathbf{o}^{(\tau-3)}}{\delta \mathbf{h}^{(\tau-3)}} + \color{red}\nabla_{\mathbf{h}^{(\tau-2)}}C \color{black} \frac{\delta \mathbf{h}^{(\tau-2)}}{\delta \mathbf{h}^{(\tau-3)}} \\
+    &= \nabla_{\mathbf{o}^{(\tau-3)}}C \frac{\delta \mathbf{o}^{(\tau-3)}}{\delta \mathbf{h}^{(\tau-3)}} + \color{red}\left(\nabla_{\mathbf{o}^{(\tau-2)}}C \frac{\delta \mathbf{o}^{(\tau-2)}}{\delta \mathbf{h}^{(\tau-2)}} + \color{blue}\nabla_{\mathbf{h}^{(\tau-1)}}C\color{red} \frac{\delta \mathbf{h}^{(\tau-1)}}{\delta \mathbf{h}^{(\tau-2)}} \right) \color{black} \frac{\delta \mathbf{h}^{(\tau-2)}}{\delta \mathbf{h}^{(\tau-3)}} \\
+    &= \nabla_{\mathbf{o}^{(\tau-3)}}C \frac{\delta \mathbf{o}^{(\tau-3)}}{\delta \mathbf{h}^{(\tau-3)}} + \color{red}\left(\nabla_{\mathbf{o}^{(\tau-2)}}C \frac{\delta \mathbf{o}^{(\tau-2)}}{\delta \mathbf{h}^{(\tau-2)}} + \color{blue}\left(\color{blue}\nabla_{\mathbf{o}^{(\tau-1)}}C \frac{\delta \mathbf{o}^{(\tau-1)}}{\delta \mathbf{h}^{(\tau-1)}} + \nabla_{\mathbf{h}^{(\tau)}}C \frac{\delta \mathbf{h}^{(\tau)}}{\delta \mathbf{h}^{(\tau-1)}} \right)\color{red} \frac{\delta \mathbf{h}^{(\tau-1)}}{\delta \mathbf{h}^{(\tau-2)}} \right) \color{black} \frac{\delta \mathbf{h}^{(\tau-2)}}{\delta \mathbf{h}^{(\tau-3)}} \\
+    % &= \nabla_{\mathbf{o}^{(\tau-2)}}C \frac{\delta \mathbf{o}^{(\tau-2)}}{\delta \mathbf{h}^{(\tau-2)}} + \color{blue}\left(\nabla_{\mathbf{o}^{(\tau-1)}}C \frac{\delta \mathbf{o}^{(\tau-1)}}{\delta \mathbf{h}^{(\tau-1)}} + \nabla_{\mathbf{h}^{(\tau)}}C \frac{\delta \mathbf{h}^{(\tau)}}{\delta \mathbf{h}^{(\tau-1)}}\right)\color{black}\frac{\delta \mathbf{h}^{(\tau-1)}}{\delta \mathbf{h}^{(\tau-2)}}
+    % \nabla_{\mathbf{h}^{(0)}} C &= \nabla_{\mathbf{o}^{(0)}}C + \nabla_{\mathbf{h}^{(\tau-3)}}C \\
+\end{align*}
+% We can see that there is a repeating pattern. The \color{red}red \color{black} term \color{red}$\nabla_{\mathbf{h}^{(\tau-2)}} C$\color{black}
+
+
+% \begin{align*}
+%     \nabla_{\mathbf{h}^{(\tau-1)}} C &= \nabla_{\mathbf{o}^{(\tau-1)}}C + \nabla_{\mathbf{h}^{(\tau)}}C \\
+%     \nabla_{\mathbf{h}^{(\tau-1)}} C &= \nabla_{\mathbf{o}^{(\tau-1)}}C + \mathbf{V}^{\top} \left(\nabla_{\mathbf{o}^{(\tau)}}C\right) \\
+%     \nabla_{\mathbf{h}^{(\tau-2)}} C &= \nabla_{\mathbf{o}^{(\tau-1)}}C + \mathbf{V}^{\top} \left(\nabla_{\mathbf{o}^{(\tau)}}C\right)
+% \end{align*}
+
+% \begin{align*}
+%     \nabla_{\mathbf{h}^{(0)}} C &=
+%     \nabla_{\mathbf{o}^{(0)}}C +
+%     \nabla_{\mathbf{o}^{(\tau-3)}}C +
+%     \nabla_{\mathbf{o}^{(\tau-2)}}C +
+%     \nabla_{\mathbf{o}^{(\tau-1)}}C +
+%     \nabla_{\mathbf{h}^{(\tau)}}C \\
+% \end{align*}
+
+\end{document}
