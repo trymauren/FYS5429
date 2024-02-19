@@ -7,6 +7,9 @@ from utils.optimisers import Adam
 from utils import read_load_model
 from collections.abc import Callable
 
+import hydra
+from omegaconf import DictConfig
+
 path_to_root = git.Repo('.', search_parent_directories=True).working_dir
 sys.path.append(path_to_root)
 
@@ -14,28 +17,27 @@ sys.path.append(path_to_root)
 class ReccurentNN:
 
     def __init__(self,
-                 hidden_activation: Callable = None,
-                 output_activation: Callable = None,
-                 loss_function: Callable = None,
-                 optimiser: Callable = None,
+                 cfg : DictConfig,
                  name: str = 'rnn',
                  ) -> None:
         """Setting activation functions, loss function and optimiser"""
-        if not hidden_activation:
-            hidden_activation = Relu()
-        self._hidden_activation = hidden_activation
+        # if not hidden_activation:
+        #     hidden_activation = Relu()
+        # self._hidden_activation = hidden_activation
 
-        if not output_activation:
-            output_activation = Tanh()
-        self._output_activation = output_activation
+        # if not output_activation:
+        #     output_activation = Tanh()
+        # self._output_activation = output_activation
 
-        if not loss_function:
-            loss_function = mse()
-        self._loss_function = loss_function
+        # if not loss_function:
+        #     loss_function = mse()
+        # self._loss_function = loss_function
 
-        if not optimiser:
-            optimiser = Adam()
-        self._optimiser = optimiser
+        # if not optimiser:
+        #     optimiser = Adam()
+        # self._optimiser = optimiser
+
+        
 
         """
         Initialize weights and biases as None until properly
@@ -50,6 +52,7 @@ class ReccurentNN:
         self.hs = None
         self.ys = None
         self.name = name
+        self._cfg = cfg
 
     def _forward(self, x: np.array) -> np.array:
         """
@@ -82,6 +85,7 @@ class ReccurentNN:
         self.hs = np.zeros((n_time_steps, step_len))
         self.xs = np.zeros(x.shape)
         z = x[0] @ self.w_xh
+        z += self.b_xh
         self.xs[0] = z
         h_t = self._hidden_activation(z)
         self.hs[0] = h_t
@@ -92,10 +96,12 @@ class ReccurentNN:
             z = x_weighted + h_weighted
             self.xs[t] = z
             h_t = self._hidden_activation(z)
+            h_t += self.b_hh
             self.hs[t] = h_t
 
-        self.outputs = self._output_activation(self.hs @ self.w_hy)
-
+        self.outputs = self._output_activation(self.hs @ self.w_hy)\
+                       + self.b_hy
+        
         return self.outputs
 
     def _backward(self, y_true, y_pred: np.ndarray) -> None:
@@ -126,7 +132,7 @@ class ReccurentNN:
             """Adjustments to output weights is simple; the derivative of
             the cost function with respect to the output weights"""
 
-            deltas_w_hy += d_loss @ self.hs[t] #Adjustment amount of output weights (accumulates over time to get final adjustment after all time has passed)
+            deltas_w_hy += d_loss @ self.hs[t] #Adjustment amount of outputweights (accumulates over time to get final adjustment after all time has passed)
 
             """A h_state's gradient update are both influenced by the
             next h_state at time t+1, as well as the output at time t.
@@ -159,9 +165,9 @@ class ReccurentNN:
 
     def fit(self,
             X: np.ndarray,
-            y: np.ndarray,
-            epochs: int,
-            improvement_threshold: float | int,
+            y: np.ndarray
+            # epochs: int,
+            # improvement_threshold: float | int,
             # early_stopping_params,
             ) -> None:
         """
@@ -216,7 +222,7 @@ class ReccurentNN:
         # Find current loss from predicted output values
         # loss = self._loss(y, y_predicted)
         # exit()
-        for e in range(epochs):
+        for e in range(int(self.cfg.RNN.FIT.EPOCHS)):
             if e >= X.shape[0]:  # temporary
                 break
             # Do a backprogation and adjust current weights and biases to 
@@ -250,3 +256,6 @@ class ReccurentNN:
 
     def update_weights(self):
         pass
+
+if __name__ == "__main__":
+    pass
