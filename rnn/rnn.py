@@ -20,7 +20,7 @@ class ReccurentNN:
                  cfg : DictConfig,
                  name: str = 'rnn',
                  ) -> None:
-        
+
 
         """Setting activation functions, loss function and optimiser"""
         self._hidden_activation = self._str_to_class(
@@ -86,7 +86,6 @@ class ReccurentNN:
         self.hs = np.zeros((n_time_steps, step_len))
         self.xs = np.zeros(x.shape)
         z = x[0] @ self.w_xh
-        z += self.b_xh
         self.xs[0] = z
         h_t = self._hidden_activation(z)
         
@@ -98,12 +97,10 @@ class ReccurentNN:
             z = x_weighted + h_weighted
             self.xs[t] = z
             h_t = self._hidden_activation(z)
-            h_t += self.b_hh
             self.hs[t] = h_t
 
-        self.outputs = self._output_activation(self.hs @ self.w_hy)\
-                       + self.b_hy
-        
+        self.outputs = self._output_activation(self.hs @ self.w_hy)
+
         return self.outputs
 
     def _backward(self, y_true, y_pred: np.ndarray) -> None:
@@ -134,7 +131,7 @@ class ReccurentNN:
             """Adjustments to output weights is simple; the derivative of
             the cost function with respect to the output weights"""
 
-            deltas_w_hy += d_loss @ self.hs[t] #Adjustment amount of outputweights (accumulates over time to get final adjustment after all time has passed)
+            deltas_w_hy += d_loss @ self.hs[t] #Adjustment amount of output weights (accumulates over time to get final adjustment after all time has passed)
 
             """A h_state's gradient update are both influenced by the
             next h_state at time t+1, as well as the output at time t.
