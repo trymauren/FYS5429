@@ -69,6 +69,7 @@ class ReccurentNN:
         z = x[0] @ self.w_xh
         self.xs[0] = z
         h_t = self._hidden_activation(z)
+        h_t += self.b_xh
         self.hs[0] = h_t
         # self.h_outputs = self.hs  # dummy variable
         for t in range(1, n_time_steps):
@@ -77,9 +78,10 @@ class ReccurentNN:
             z = x_weighted + h_weighted
             self.xs[t] = z
             h_t = self._hidden_activation(z)
+            h_t += self.b_hh
             self.hs[t] = h_t
 
-        self.ys = self._output_activation(self.hs @ self.w_hy)
+        self.ys = self._output_activation(self.hs @ self.w_hy) + self.b_hy
         return self.ys
 
     def _backward(self, y_true, y_pred: np.ndarray) -> None:
