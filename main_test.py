@@ -17,10 +17,8 @@ sys.path.append(path_to_root)
 # # x = np.ones((2, 3, 1))
 # rnn.fit(x, y_true, 100, 0.1)
 
-# # print(np.array([1,1]).reshape(-1,1).shape)
+# print(np.array([1,1]).reshape(-1,1).shape)
 
-# le = np.array([[2, 2], [1, 1]])
-# print(le[0])
 
 @hydra.main(version_base = None, config_path = "conf", config_name = "config")
 def main_test(cfg : DictConfig) -> None:
