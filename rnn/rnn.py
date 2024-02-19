@@ -218,12 +218,20 @@ class ReccurentNN:
         # Find current loss from predicted output values
         # loss = self._loss(y, y_predicted)
         # exit()
+        back_count = 0              
         for e in range(int(self.cfg.RNN.FIT.EPOCHS)):
             if e >= X.shape[0]:  # temporary
                 break
             # Do a backprogation and adjust current weights and biases to 
             # improve loss, return new improved weights and biases
-            self._backward(y[e], y_pred)
+
+            """Adds the ability to decide how often we want to
+            backpropagate"""
+            if back_count == int(self.cfg.RNN.FIT.STEPS_BTWN_BACKPROP):
+                self._backward(y[e], y_pred)
+                back_count = 0
+            back_count += 1
+
             # Do a forward pass with new weights, return outputs from 
             # each hidden state and all the weights and biases
             y_pred = self._forward(X[e])

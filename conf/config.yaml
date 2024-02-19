@@ -7,4 +7,5 @@ RNN:
     FIT:
         EPOCHS: 1000000
         IMPROVEMENT_THRESHOLD: 0.1
+        STEPS_BTWN_BACKPROP: 12
     
