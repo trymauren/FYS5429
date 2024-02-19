@@ -20,24 +20,25 @@ class ReccurentNN:
                  cfg : DictConfig,
                  name: str = 'rnn',
                  ) -> None:
-        """Setting activation functions, loss function and optimiser"""
-        # if not hidden_activation:
-        #     hidden_activation = Relu()
-        # self._hidden_activation = hidden_activation
-
-        # if not output_activation:
-        #     output_activation = Tanh()
-        # self._output_activation = output_activation
-
-        # if not loss_function:
-        #     loss_function = mse()
-        # self._loss_function = loss_function
-
-        # if not optimiser:
-        #     optimiser = Adam()
-        # self._optimiser = optimiser
-
         
+
+        """Setting activation functions, loss function and optimiser"""
+        self._hidden_activation = self._str_to_class(
+            cfg.RNN.FUNCTIONS.HID_ACT_FUNC
+        )()
+
+        self._output_activation = self._str_to_class(
+            cfg.RNN.FUNCTIONS.OUT_ACT_FUNC
+        )()
+
+        self._loss_function = self._str_to_class(
+            cfg.RNN.FUNCTIONS.LOSS_FUNC
+        )()
+
+        self._optimiser = self._str_to_class(
+            cfg.RNN.FUNCTIONS.OPTIMISER
+        )()
+
 
         """
         Initialize weights and biases as None until properly
@@ -52,7 +53,7 @@ class ReccurentNN:
         self.hs = None
         self.ys = None
         self.name = name
-        self._cfg = cfg
+        self.cfg = cfg          # hydra config. object  
 
     def _forward(self, x: np.array) -> np.array:
         """
@@ -88,6 +89,7 @@ class ReccurentNN:
         z += self.b_xh
         self.xs[0] = z
         h_t = self._hidden_activation(z)
+        
         self.hs[0] = h_t
         # self.h_outputs = self.hs  # dummy variable
         for t in range(1, n_time_steps):
@@ -166,9 +168,6 @@ class ReccurentNN:
     def fit(self,
             X: np.ndarray,
             y: np.ndarray
-            # epochs: int,
-            # improvement_threshold: float | int,
-            # early_stopping_params,
             ) -> None:
         """
         Method for training the RNN, iteratively runs _forward(), 
@@ -256,6 +255,9 @@ class ReccurentNN:
 
     def update_weights(self):
         pass
+
+    def _str_to_class(self, classname):
+        return getattr(sys.modules[__name__], classname)
 
 if __name__ == "__main__":
     pass

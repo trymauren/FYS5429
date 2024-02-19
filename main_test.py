@@ -25,7 +25,7 @@ sys.path.append(path_to_root)
 @hydra.main(version_base = None, config_path = "conf", config_name = "config")
 def main_test(cfg : DictConfig) -> None:
 	x = np.array([[[0, 1, 3, 2, 4]], [[0, 3, 2, 4, 1]]], dtype=float)
-	y_true = np.ones((2, 26))
+	y_true = np.array([[1, 3, 2, 4, 5], [3, 2, 4, 1, 5]])
 	rnn = ReccurentNN(cfg)
 	rnn.fit(x, y_true)
 
