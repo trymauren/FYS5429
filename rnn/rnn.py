@@ -4,7 +4,7 @@ import numpy as np
 from collections.abc import Callable
 path_to_root = git.Repo('.', search_parent_directories=True).working_dir
 sys.path.append(path_to_root)
-from utils.activations import Relu, Tanh
+from utils.activations import Relu, Tanh, Softmax
 from utils.loss_functions import Mean_Square_Loss as mse
 from utils.optimisers import Adam
 from utils import read_load_model
@@ -21,11 +21,11 @@ class ReccurentNN:
                  ) -> None:
         """Setting activation functions, loss function and optimiser"""
         if not hidden_activation:
-            hidden_activation = Relu()
+            hidden_activation = Tanh()
         self._hidden_activation = hidden_activation
 
         if not output_activation:
-            output_activation = Tanh()
+            output_activation = Softmax()
         self._output_activation = output_activation
 
         if not loss_function:
@@ -94,23 +94,26 @@ class ReccurentNN:
         # deltas_b_xh = np.zeros_like(self.b_xh, dtype=float)
         deltas_b_hh = np.zeros_like(self.b_hh, dtype=float)
         deltas_b_hy = np.zeros_like(self.b_hy)
-        prev_grad_h_C = np.zeros_like(self.hs[0].shape)
-        # y_pred[t] = softmax(y_pred[t])
+        prev_grad_h_Cost = np.zeros_like(self.hs[0].shape)
 
         # BACKPROPAGATION THROUGH TIME (BPTT):
-        for t in range(len(self.hs)-1, -1, -1):
-
+        for t in reversed(range(len(self.hs))):
+            normalised_probabilities = self._output_activation(y_pred[t])
+            print(t)
             """ BELOW IS CALCULATION OF GRADIENTS W/RESPECT TO HIDDEN_STATES
             - SEE (1-~20) IN TEX-DOCUMENT """
 
             """Just doing some copying. grad_o_Cost will, in the next
             line of code, contain the cost vector"""
-            grad_o_Cost = np.copy(y_pred[t])
+            # grad_o_Cost = np.copy(y_pred[t])
+            grad_o_Cost = np.copy(normalised_probabilities)
 
             """See deep learning book, 10.18 for
             explanation of following line. Also:
             http://cs231n.github.io/neural-networks-case-study/#grad
-            Eventually, one can find grad(C) w/ respect to C^t"""
+            Eventually, one can, as an exercise, find grad(C) w/ respect
+            to C^t. The variable grad_o_Cost now contains the gradient
+            of the cost function."""
             grad_o_Cost[y_true[t]] -= 1
 
             """A h_state's gradient update are both influenced by the
@@ -123,7 +126,7 @@ class ReccurentNN:
 
             Eq. 16 in tex-document(see also eq. 15 for first iteration of BPPT)
             Eq. 10.20 in DLB"""
-            grad_h_C = grad_o_Cost @ self.w_hy + prev_grad_h_C
+            grad_h_Cost = grad_o_Cost @ self.w_hy + prev_grad_h_Cost
 
             """The following line is to shorten equations. It fetches/
             differentiates the hidden activation function."""
@@ -133,19 +136,19 @@ class ReccurentNN:
 
             """Cumulate the error."""
             deltas_w_hy += grad_o_Cost @ self.hs[t]         # 10.24 in DLB
-            deltas_w_hh += grad_h_C @ d_act * self.hs[t-1]  # 10.26 in DLB
-            deltas_w_xh += grad_h_C @ d_act * self.xs[t]    # 10.28 in DLB
+            deltas_w_hh += grad_h_Cost @ d_act * self.hs[t-1]  # 10.26 in DLB
+            deltas_w_xh += grad_h_Cost @ d_act * self.xs[t]    # 10.28 in DLB
 
             """Pass on the bits of the chain rule to the calculation of
             the previous hidden state update
 
             This line equals the first part of eq. 10.21 in DLB
             To emphasize: before the "+" sign in 10.21 in DLB"""
-            prev_grad_h_C = d_act @ self.w_hh @ grad_h_C
+            prev_grad_h_Cost = d_act @ self.w_hh @ grad_h_Cost
 
             # Biases:
             deltas_b_hy += grad_o_Cost * 1     # 10.22 in DLB
-            deltas_b_hh += grad_h_C @ d_act    # 10.22 in DLB
+            deltas_b_hh += grad_h_Cost @ d_act    # 10.22 in DLB
             # deltas_b_xh += 0                   # no bias on input right?
 
         # Weight updates:
