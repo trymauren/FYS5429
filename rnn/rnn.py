@@ -4,7 +4,7 @@ import numpy as np
 from collections.abc import Callable
 path_to_root = git.Repo('.', search_parent_directories=True).working_dir
 sys.path.append(path_to_root)
-from utils.activations import Relu, Tanh, Softmax
+from utils.activations import Relu, Tanh
 from utils.loss_functions import Mean_Square_Loss as mse
 from utils.optimisers import Adam
 from utils import read_load_model
@@ -21,11 +21,11 @@ class ReccurentNN:
                  ) -> None:
         """Setting activation functions, loss function and optimiser"""
         if not hidden_activation:
-            hidden_activation = Tanh()
+            hidden_activation = Relu()
         self._hidden_activation = hidden_activation
 
         if not output_activation:
-            output_activation = Softmax()
+            output_activation = Tanh()
         self._output_activation = output_activation
 
         if not loss_function:
@@ -49,9 +49,8 @@ class ReccurentNN:
         self.hs = None
         self.ys = None
         self.name = name
-        self.prev_h = None
 
-    def _forward(self, x: np.array, prev_h):
+    def _forward(self, x: np.array):
         """
         Forward-pass method to be used in fit-method for training the
         RNN. Returns predicted output values
@@ -64,30 +63,29 @@ class ReccurentNN:
         """
 
         n_time_steps = x.shape[0]
-
-        self.hs = {}
-        self.hs[-1] = np.copy(prev_h)
-        self.xs = {}
-        self.ys = {}
-        for t in range(len(x)):
-            self.xs[t] = np.zeros((26, 1))
-            self.xs[t][x[t]] = 1
-            x_weighted = self.w_xh @ self.xs[t]
-            h_weighted = self.w_hh @ self.hs[t-1] + self.b_hh
+        step_len = x.shape[1]
+        self.hs = np.zeros((n_time_steps, step_len))
+        self.xs = np.zeros(x.shape)
+        z = x[0] @ self.w_xh
+        self.xs[0] = z
+        h_t = self._hidden_activation(z)
+        self.hs[0] = h_t
+        # self.h_outputs = self.hs  # dummy variable
+        for t in range(1, n_time_steps):
+            x_weighted = x[t] @ self.w_xh
+            h_weighted = self.hs[t-1] @ self.w_hh
             z = x_weighted + h_weighted
             self.xs[t] = z
             h_t = self._hidden_activation(z)
             self.hs[t] = h_t
-            o_t = self.w_hy @ self.hs[t] + self.b_hy
-            self.ys[t] = self._output_activation(o_t)
 
-        self.prev_h = self.hs[t]
-        return self.prev_h
+        self.ys = self._output_activation(self.hs @ self.w_hy)
+        return self.ys
 
-    def _backward(self, y_true, y_pred: np.ndarray, eta: int = 0.001) -> None:
+    def _backward(self, y_true, y_pred: np.ndarray) -> None:
 
         # Set current loss. Not appliccable anymore?
-        # self._loss_function(y_true, y_pred)
+        self._loss_function(y_true, y_pred)
 
         deltas_w_xh = np.zeros_like(self.w_xh, dtype=float)  # np.zeros?
         deltas_w_hh = np.zeros_like(self.w_hh, dtype=float)  # np.zeros?
@@ -96,29 +94,23 @@ class ReccurentNN:
         # deltas_b_xh = np.zeros_like(self.b_xh, dtype=float)
         deltas_b_hh = np.zeros_like(self.b_hh, dtype=float)
         deltas_b_hy = np.zeros_like(self.b_hy)
-        prev_grad_h_Cost = np.zeros_like(self.w_hy)
+        prev_grad_h_C = np.zeros_like(self.hs[0].shape)
+        # y_pred[t] = softmax(y_pred[t])
 
         # BACKPROPAGATION THROUGH TIME (BPTT):
-        for t in reversed(range(len(self.hs)-1)):
-            if t < len(self.hs) - 10:
-                break
-            normalised_probabilities = self.ys[t]
-            v = np.sum(normalised_probabilities)
+        for t in range(len(self.hs)-1, -1, -1):
 
             """ BELOW IS CALCULATION OF GRADIENTS W/RESPECT TO HIDDEN_STATES
             - SEE (1-~20) IN TEX-DOCUMENT """
 
             """Just doing some copying. grad_o_Cost will, in the next
             line of code, contain the cost vector"""
-            # grad_o_Cost = np.copy(y_pred[t])
-            grad_o_Cost = np.copy(normalised_probabilities)
+            grad_o_Cost = np.copy(y_pred[t])
 
             """See deep learning book, 10.18 for
             explanation of following line. Also:
             http://cs231n.github.io/neural-networks-case-study/#grad
-            Eventually, one can, as an exercise, find grad(C) w/ respect
-            to C^t. The variable grad_o_Cost now contains the gradient
-            of the cost function."""
+            Eventually, one can find grad(C) w/ respect to C^t"""
             grad_o_Cost[y_true[t]] -= 1
 
             """A h_state's gradient update are both influenced by the
@@ -131,7 +123,7 @@ class ReccurentNN:
 
             Eq. 16 in tex-document(see also eq. 15 for first iteration of BPPT)
             Eq. 10.20 in DLB"""
-            grad_h_Cost = self.w_hy.T @ grad_o_Cost + prev_grad_h_Cost
+            grad_h_C = grad_o_Cost @ self.w_hy + prev_grad_h_C
 
             """The following line is to shorten equations. It fetches/
             differentiates the hidden activation function."""
@@ -140,21 +132,21 @@ class ReccurentNN:
             """ BELOW IS CALCULATION OF GRADIENT W/RESPECT TO WEIGHTS """
 
             """Cumulate the error."""
-            deltas_w_hy += eta * grad_o_Cost @ self.hs[t].T          # 10.24 in DLB
-            deltas_w_hh += eta * grad_h_Cost @ d_act * self.hs[t-1]  # 10.26 in DLB
-            deltas_w_xh += eta * grad_h_Cost @ d_act * self.xs[t]    # 10.28 in DLB
+            deltas_w_hy += grad_o_Cost @ self.hs[t]         # 10.24 in DLB
+            deltas_w_hh += grad_h_C @ d_act * self.hs[t-1]  # 10.26 in DLB
+            deltas_w_xh += grad_h_C @ d_act * self.xs[t]    # 10.28 in DLB
 
             """Pass on the bits of the chain rule to the calculation of
             the previous hidden state update
 
             This line equals the first part of eq. 10.21 in DLB
             To emphasize: before the "+" sign in 10.21 in DLB"""
-            prev_grad_h_Cost = d_act @ self.w_hh @ grad_h_Cost
+            prev_grad_h_C = d_act @ self.w_hh @ grad_h_C
 
             # Biases:
-            deltas_b_hy += eta * grad_o_Cost.reshape(-1, 1) * 1  # 10.22 in DLB
-            # deltas_b_hh += eta * grad_h_Cost @ d_act             # 10.22 in DLB
-            # deltas_b_xh += 0  # no bias on input right?
+            deltas_b_hy += grad_o_Cost * 1     # 10.22 in DLB
+            deltas_b_hh += grad_h_C @ d_act    # 10.22 in DLB
+            # deltas_b_xh += 0                   # no bias on input right?
 
         # Weight updates:
         self.w_hy += deltas_w_hy
@@ -210,31 +202,31 @@ class ReccurentNN:
         output_size = y.shape[1]  # this may not be correct
 
         # TODO: move these to a function and add random configurability
-        self.w_xh = np.random.randn(hidden_size, 26)*0.01
-        self.w_hh = np.random.randn(hidden_size, hidden_size)*0.01
-        self.w_hy = np.random.randn(26, hidden_size)*0.01
+        self.w_xh = np.random.randn(time_step_len, time_step_len)*0.01
+        self.w_hh = np.random.randn(time_step_len, time_step_len)*0.01
+        self.w_hy = np.random.randn(time_step_len, time_step_len)*0.01
         # TODO: move these to a function and add random configurability
         self.b_xh = np.random.randn(1)
-        self.b_hh = np.random.randn(hidden_size, 1)
-        self.b_hy = np.random.randn(26, 1)
+        self.b_hh = np.random.randn(time_step_len, 1)
+        self.b_hy = np.random.randn(output_size, hidden_size)
 
-        prev_h = np.zeros((26, 1))
         # Do a forward pass
-        prev_h = self._forward(X[0], prev_h)
+        y_pred = self._forward(X[0])
 
         for e in range(epochs):
-            for x in range(len(X)):
-                # Do a backprogation and adjust current weights and biases to
-                # improve loss, return new improved weights and biases
-                self._backward(y[x], self.ys)
-                # Do a forward pass with new weights, return outputs from
-                # each hidden state and all the weights and biases
-                prev_h = self._forward(X[x], prev_h)
+            if e >= X.shape[0]:  # temporary
+                break
+            # Do a backprogation and adjust current weights and biases to
+            # improve loss, return new improved weights and biases
+            self._backward(y[e], y_pred)
+            # Do a forward pass with new weights, return outputs from
+            # each hidden state and all the weights and biases
+            y_pred = self._forward(X[e])
 
             # TODO: add stopping criterias
         read_load_model.save_model(self, 'saved_models/', self.name)
 
-    def predict(self, X: np.ndarray, seed_index, n) -> np.ndarray:
+    def predict(self, X: np.ndarray) -> np.ndarray:
         """
         Predicts the next value in a sequence of given inputs to the RNN
         network
@@ -249,19 +241,4 @@ class ReccurentNN:
         np.array
         - Predicted next value for the given input sequence
         """
-        num_chars = 26
-        x = np.zeros((num_chars, 1))
-        x[seed_index] = 1
-        ixes = []
-        for t in range(n):
-            self.prev_h = np.tanh(self.w_xh @ x
-                                  + self.w_hh @ self.prev_h
-                                  + self.b_hh)
-            y = self.w_hy @ self.prev_h + self.b_hy
-            p = self._output_activation(y)
-            ix = np.random.choice(range(num_chars), p=p.ravel())
-            x = np.zeros((num_chars, 1))
-            x[ix] = 1
-            ixes.append(ix)
-        return ixes
-
+        return self._forward(X)[-1]
