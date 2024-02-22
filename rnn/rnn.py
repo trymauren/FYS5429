@@ -53,7 +53,7 @@ class ReccurentNN:
         self.hs = None
         self.ys = None
         self.name = name
-        self.cfg = cfg          # hydra config. object  
+        self.cfg = cfg          # hydra config. object
 
     def _forward(self, x: np.array) -> np.array:
         """
