@@ -164,3 +164,7 @@ untitled.sublime-workspace
 
 # MacOS
 .DS_Store/
+
+# :)
+saved_models/*
+outputs/*
