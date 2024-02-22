@@ -123,7 +123,7 @@ class ReccurentNN:
 
             Eq. 16 in tex-document(see also eq. 15 for first iteration of BPPT)
             Eq. 10.20 in DLB"""
-            grad_h_Cost = grad_o_Cost @ self.w_hy + prev_grad_h_Cost
+            grad_h_Cost = prev_grad_h_Cost + grad_o_Cost @ self.w_hy
 
             """The following line is to shorten equations. It fetches/
             differentiates the hidden activation function."""
