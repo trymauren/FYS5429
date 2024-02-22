@@ -8,6 +8,7 @@ from utils.activations import Relu, Tanh
 from utils.loss_functions import Mean_Square_Loss as mse
 from utils.optimisers import Adam
 from utils import read_load_model
+import matplotlib.pyplot as plt
 
 
 class ReccurentNN:
@@ -49,6 +50,7 @@ class ReccurentNN:
         self.hs = None
         self.ys = None
         self.name = name
+        self._loss = []
 
     def _forward(self, x: np.array):
         """
@@ -85,7 +87,7 @@ class ReccurentNN:
     def _backward(self, y_true, y_pred: np.ndarray) -> None:
 
         # Set current loss. Not appliccable anymore?
-        self._loss_function(y_true, y_pred)
+        self._loss.append(self._loss_function(y_true, y_pred))
 
         deltas_w_xh = np.zeros_like(self.w_xh, dtype=float)  # np.zeros?
         deltas_w_hh = np.zeros_like(self.w_hh, dtype=float)  # np.zeros?
@@ -242,3 +244,8 @@ class ReccurentNN:
         - Predicted next value for the given input sequence
         """
         return self._forward(X)[-1]
+
+    def plot(self):
+        plt.plot(self._loss, range(len(self._loss)))
+        print(self._loss)
+        plt.show()
