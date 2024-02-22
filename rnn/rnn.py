@@ -94,7 +94,7 @@ class ReccurentNN:
         # deltas_b_xh = np.zeros_like(self.b_xh, dtype=float)
         deltas_b_hh = np.zeros_like(self.b_hh, dtype=float)
         deltas_b_hy = np.zeros_like(self.b_hy)
-        prev_grad_h_C = np.zeros_like(self.hs[0].shape)
+        prev_grad_h_Cost = np.zeros_like(self.hs[0].shape)
         # y_pred[t] = softmax(y_pred[t])
 
         # BACKPROPAGATION THROUGH TIME (BPTT):
@@ -123,7 +123,7 @@ class ReccurentNN:
 
             Eq. 16 in tex-document(see also eq. 15 for first iteration of BPPT)
             Eq. 10.20 in DLB"""
-            grad_h_C = grad_o_Cost @ self.w_hy + prev_grad_h_C
+            grad_h_Cost = grad_o_Cost @ self.w_hy + prev_grad_h_Cost
 
             """The following line is to shorten equations. It fetches/
             differentiates the hidden activation function."""
@@ -133,19 +133,19 @@ class ReccurentNN:
 
             """Cumulate the error."""
             deltas_w_hy += grad_o_Cost @ self.hs[t]         # 10.24 in DLB
-            deltas_w_hh += grad_h_C @ d_act * self.hs[t-1]  # 10.26 in DLB
-            deltas_w_xh += grad_h_C @ d_act * self.xs[t]    # 10.28 in DLB
+            deltas_w_hh += grad_h_Cost @ d_act * self.hs[t-1]  # 10.26 in DLB
+            deltas_w_xh += grad_h_Cost @ d_act * self.xs[t]    # 10.28 in DLB
 
             """Pass on the bits of the chain rule to the calculation of
             the previous hidden state update
 
             This line equals the first part of eq. 10.21 in DLB
             To emphasize: before the "+" sign in 10.21 in DLB"""
-            prev_grad_h_C = d_act @ self.w_hh @ grad_h_C
+            prev_grad_h_Cost = d_act @ self.w_hh @ grad_h_Cost
 
             # Biases:
             deltas_b_hy += grad_o_Cost * 1     # 10.22 in DLB
-            deltas_b_hh += grad_h_C @ d_act    # 10.22 in DLB
+            deltas_b_hh += grad_h_Cost @ d_act    # 10.22 in DLB
             # deltas_b_xh += 0                   # no bias on input right?
 
         # Weight updates:
