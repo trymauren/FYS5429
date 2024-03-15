@@ -161,10 +161,11 @@ cython_debug/
 
 # Sublime Text
 untitled.sublime-workspace
-
+LICENSE.sublime-workspace
 # MacOS
-.DS_Store/
+.DS_Store
 
 # :)
 outputs/*
 saved_models/*
+bibliography.bib
