@@ -12,6 +12,8 @@ class word_embedding():
         self.nlp = en_core_web_lg.load()
     
     def tokenize(self, text):
+        #TODO implement input of large texts/text files and have it tokenized
+        #and returned as a list of embedding objects
         pass
 
     def get_embedding(self, word: str) -> np.ndarray:
@@ -20,11 +22,14 @@ class word_embedding():
     def retrieve_word(self, embedding_obj: np.ndarray) -> str:
         return embedding_obj.text
     
-    def get_similarity(self, embedding1: np.ndarray, embedding2: np.ndarray) -> float:
+    def get_similarity(self, embedding1: np.ndarray, embedding2: np.ndarray) \
+        -> float:
         return embedding1.similarity(embedding2)
     
     def find_closest(self, embedding: np.ndarray, number: int) -> np.ndarray:
-        most_similar = self.nlp.vocab.vectors.most_similar(np.array([embedding]), n=number)
+        most_similar = self.nlp.vocab.vectors.most_similar(
+                                                        np.array([embedding]), 
+                                                        n=number)
         keys = most_similar[0][0]
         nearest_words = []
         for key in keys: 
