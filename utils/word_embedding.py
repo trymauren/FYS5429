@@ -10,14 +10,13 @@ class word_embedding():
         self.nlp = spacy.load("en_core_web_lg")
         import en_core_web_lg
         self.nlp = en_core_web_lg.load()
-    
-    def tokenize(self, text):
-        #TODO implement input of large texts/text files and have it tokenized
-        #and returned as a list of embedding objects
-        pass
 
-    def get_embedding(self, word: str) -> np.ndarray:
-        return self.nlp(word).vector
+    def get_embeddings(self, text: str) -> np.ndarray:
+        embeddings = []
+        doc = self.nlp(text)
+        for token in doc:
+            embeddings.append(token.vector)
+        return embeddings
 
     def retrieve_word(self, embedding_obj: np.ndarray) -> str:
         return embedding_obj.text
@@ -40,8 +39,7 @@ class word_embedding():
     
 if __name__ == "__main__":
     w_emb = word_embedding()
-    dog = w_emb.get_embedding("dog")
-    cat = w_emb.get_embedding("cat")
-    apple = w_emb.get_embedding("apple")
-    print(dog.shape)
-    print(w_emb.find_closest(dog, 20))
+    dog = w_emb.get_embeddings("dog log mog smog fog clog")
+    cat = w_emb.get_embeddings("cat")
+    apple = w_emb.get_embeddings("apple")
+    print(dog)
