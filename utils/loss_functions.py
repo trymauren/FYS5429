@@ -19,30 +19,33 @@ class Mean_Square_Loss(LossFunction):
 
     def __init__(self):
         super().__init__()
-        self.y = None
-        self.y_pred = None
         self.loss = None
+        self.y_pred = None
+        self.y_true = None
 
-    def eval(self, y, y_pred):
-        self.y = y
+    def eval(self, y_true, y_pred):
         self.y_pred = y_pred
-        self.loss = np.square(np.subtract(y, y_pred)).mean()
+        self.y_true = y_true
+        self.loss = np.square(np.subtract(y_true, y_pred)).mean(axis=0)
         return self.loss
 
-    def grad(self):
-        if self.loss is None:
+    # not tested and verified:
+    def grad(self, loss=None):
+        if self.loss is None and loss is None:
             print('raise error')  # TODO
-        else:
-            # The thought is that we are using batches for training
-            return 2*self.loss / self.y_pred.shape[1]  # this may be wrong
+        elif not (loss is None):
+            self.loss = loss
+        grad = (2
+                * np.array([np.subtract(self.y_pred, self.y_true)]).T
+                / len(self.y_pred))
+        return grad
 
+# class Classification_Logloss(LossFunction):
 
-class Classification_Logloss(LossFunction):
+#     def __init__(self, n_classes):
+#         self.n_classes = n_classes
+#         super().__init__()
 
-    def __init__(self, n_classes):
-        self.n_classes = n_classes
-        super().__init__()
-
-    def eval(self, y, y_pred):
-        y_pred = y_pred + LOG_CONST  # to avoid log(0) calculations
-        return -np.sum(y*np.log(y_pred))
+#     def eval(self, y, y_pred):
+#         y_pred = y_pred + LOG_CONST  # to avoid log(0) calculations
+#         return -np.sum(y*np.log(y_pred))
