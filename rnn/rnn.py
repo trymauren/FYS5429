@@ -7,6 +7,9 @@ from utils.loss_functions import Mean_Square_Loss as mse
 from utils.optimisers import Adam
 from utils import read_load_model
 import matplotlib.pyplot as plt
+import hydra
+from collections.abc import Callable
+from omegaconf import DictConfig
 
 path_to_root = git.Repo('.', search_parent_directories=True).working_dir
 sys.path.append(path_to_root)
@@ -14,32 +17,35 @@ sys.path.append(path_to_root)
 
 class ReccurentNN:
 
-    def __init__(
-            self,
-            hidden_activation: Callable = None,
-            output_activation: Callable = None,
-            loss_function: Callable = None,
-            optimiser: Callable = None,
-            regression: bool = False,
-            classification: Callable = False,
-            name: str = 'rnn') -> None:
+    def __init__(self,
+                 cfg : DictConfig,
+                 hidden_activation: Callable = None,
+                 output_activation: Callable = None,
+                 loss_function: Callable = None,
+                 optimiser: Callable = None,
+                 regression: bool = False,
+                 classification: Callable = False,
+                 name: str = 'rnn'
+                 ) -> None:
 
-        # Setting activation functions, loss function and optimiser
-        if not hidden_activation:
-            hidden_activation = Relu()
-        self._hidden_activation = hidden_activation
 
-        if not output_activation:
-            output_activation = Tanh()
-        self._output_activation = output_activation
+        #Setting activation functions, loss function and optimiser
+        self._hidden_activation = self._str_to_class(
+            cfg.RNN.FUNCTIONS.HID_ACT_FUNC
+        )()
 
-        if not loss_function:
-            loss_function = mse()
-        self._loss_function = loss_function
+        self._output_activation = self._str_to_class(
+            cfg.RNN.FUNCTIONS.OUT_ACT_FUNC
+        )()
 
-        if not optimiser:
-            optimiser = Adam()
-        self._optimiser = optimiser
+        self._loss_function = self._str_to_class(
+            cfg.RNN.FUNCTIONS.LOSS_FUNC
+        )()
+
+        self._optimiser = self._str_to_class(
+            cfg.RNN.FUNCTIONS.OPTIMISER
+        )()
+
 
         self.regression = regression
         self.classification = classification
@@ -55,6 +61,7 @@ class ReccurentNN:
         self.xs, self.hs, self.ys = None, None, None
 
         self.name = name
+        self.cfg = cfg          # hydra config. object
 
     def _forward(
             self,
@@ -80,7 +87,6 @@ class ReccurentNN:
         -------------------------------
         None
         """
-        None
         for t in range(num_hidden_states):
             x_weighted = self.w_xh @ X_partition[t]
             h_weighted = self.w_hh @ self.hs[t-1]
