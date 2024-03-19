@@ -4,28 +4,17 @@ import numpy as np
 from rnn.rnn import ReccurentNN
 from utils.activations import Relu, Tanh
 
-import hydra
-from omegaconf import DictConfig
-
 path_to_root = git.Repo('.', search_parent_directories=True).working_dir
 sys.path.append(path_to_root)
 
-# rnn = ReccurentNN(Relu())
-# y_true = np.array([[1, 3, 2, 4, 5], [3, 2, 4, 1, 5]])
-# x = np.array([[[0, 1, 3, 2, 4]], [[0, 3, 2, 4, 1]]], dtype=float)
-# # y_true = np.ones((2, 26))
-# # x = np.ones((2, 3, 1))
-# rnn.fit(x, y_true, 100, 0.1)
+rnn = ReccurentNN(Tanh(), Tanh(), regression=True)
 
-# print(np.array([1,1]).reshape(-1,1).shape)
+# x = np.array([np.sin(np.linspace(0, 2 * np.pi, 100))]).T
+# y = np.array([np.sin(np.linspace(0, 2 * np.pi, 100))]).T
+# ret = rnn.fit(x, y, 1000, 10)
 
+x = np.ones((200, 5))
+y = np.zeros((200, 5))
+ret = rnn.fit(x, y, 100, num_hidden_states=10, num_hidden_layers=20)
 
-@hydra.main(version_base = None, config_path = "conf", config_name = "config")
-def main_test(cfg : DictConfig) -> None:
-	x = np.array([[[0, 1, 3, 2, 4]], [[0, 3, 2, 4, 1]]], dtype=float)
-	y_true = np.array([[1, 3, 2, 4, 5], [3, 2, 4, 1, 5]])
-	rnn = ReccurentNN(cfg)
-	rnn.fit(x, y_true)
-
-if __name__ == "__main__":
-	main_test()
+print(ret)
