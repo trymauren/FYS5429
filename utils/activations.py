@@ -8,7 +8,6 @@ Creds to "https://github.com/ddbourgin/numpy-ml/blob/master/numpy_ml/
 neural_nets/activations/activations.py#L73-L137" for the setup
 """
 
-
 class Activation():
     def __init__(self):
         super().__init__()
