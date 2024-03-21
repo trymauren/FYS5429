@@ -54,9 +54,10 @@ The goal is to maximize the probability of the observed data by estimating param
 This cross-entropy function, which is a function of inputs ($\mathbf{x}$) and outputs ($\mathbf{y}$), can be seen in (8).
 \begin{align}
     &C\left(\{\mathbf{x}^{(1)},...,\mathbf{x}^{(\tau)}\}, \{\mathbf{y}^{(1)},...,\mathbf{y}^{(\tau)}\}\right) \\
-    &= \sum_t L^{(t)} \\
+    &= \sum_t C^{(t)} \\
     &= -\sum_t log\;p\left(y^{(t)}|\{\mathbf{x}^{(1)},...,\mathbf{x}^{(t)}\}\right) \\
 \end{align}
+
 Note: $\quad y^{(t)} \;\;$ is an entry in the output vector $\;\; \mathbf{\hat{y}}^{(t)}$ \par
 The cost function is the negative log-likelihood function. Minimising this function is the same as maximum the likelihood of the parameters - not due to the log, but due to the negative prefix. The log in log-likelihood works, but I dont know why it is used? \par
 Below we derive the gradients of the nodes in the computational graph from the deep learning book. These gradients must propagate backwards through time, from time $t=\tau$ down to $t=0$.
@@ -100,7 +101,7 @@ The only nodes that need gradient computation now, are all the hidden states pre
 Some parts of the equations above have been colored to emphasize the parts that we take with us from one gradient calculation to the next. \par
 It is observable that the gradient at time $t$ is indeed dependent on all later time steps $t + 1, t + 2, t + n$, as well as the current output. The influence from current output can be seen before the first (+), while the influence from previous states can be observed after the first (+). \par
 
-The final step is to calculate the gradient of the parameter nodes $\mathbf{U, W, b, V, c}$. Calculating the derivative of $\mathbf{h}^{(t)}$ involves differentiating the activation function using the chain rule. In the equations below, the chain rule is applied to differentiate the activations with respect to different parameters, but the activation function itself is not differentiated because it depends on which activation function in use. It is instead denoted as $\nabla_{activation}$.
+The final step is to calculate the gradient of the parameter nodes $\mathbf{U, W, b, V, c}$. To find these gradients, we must differentiate $\mathbf{h}^{(t)}$. Calculating the derivative of $\mathbf{h}^{(t)}$ involves differentiating the activation function using the chain rule. In the equations below, the chain rule is applied to differentiate the activations with respect to different parameters, but the activation function itself is not differentiated because it depends on which activation function in use. It is instead denoted as $\nabla_{activation}$.
 \begin{align*}
     \nabla_\mathbf{c}C &= \sum_t \left(\nabla_{\mathbf{o}^{(t)}}C\right) \frac{\delta \mathbf{o}^{(t)}}{\delta \mathbf{c}^{(t)}} &&= \sum_t \left(\nabla_{\mathbf{o}^{(t)}}C\right) \cdot 1 \\
     \nabla_\mathbf{V}C &= \sum_t \left(\nabla_{\mathbf{o}^{(t)}}C\right) \frac{\delta \mathbf{o}^{(t)}}{\delta \mathbf{h}^{(t)}} &&= \sum_t \left(\nabla_{\mathbf{o}^{(t)}}C\right)\mathbf{h^{(t)}} \\
@@ -119,21 +120,14 @@ The code written for BPTT is tricky to read. Below is conversions from math to c
     \nabla_{\mathbf{h}^{(t)}} C &&&\Rightarrow \texttt{grad\_h\_Cost} \\
 \end{align*}
 
-
-
-% \begin{align*}
-%     \nabla_{\mathbf{h}^{(\tau-1)}} C &= \nabla_{\mathbf{o}^{(\tau-1)}}C + \nabla_{\mathbf{h}^{(\tau)}}C \\
-%     \nabla_{\mathbf{h}^{(\tau-1)}} C &= \nabla_{\mathbf{o}^{(\tau-1)}}C + \mathbf{V}^{\top} \left(\nabla_{\mathbf{o}^{(\tau)}}C\right) \\
-%     \nabla_{\mathbf{h}^{(\tau-2)}} C &= \nabla_{\mathbf{o}^{(\tau-1)}}C + \mathbf{V}^{\top} \left(\nabla_{\mathbf{o}^{(\tau)}}C\right)
-% \end{align*}
-
-% \begin{align*}
-%     \nabla_{\mathbf{h}^{(0)}} C &=
-%     \nabla_{\mathbf{o}^{(0)}}C +
-%     \nabla_{\mathbf{o}^{(\tau-3)}}C +
-%     \nabla_{\mathbf{o}^{(\tau-2)}}C +
-%     \nabla_{\mathbf{o}^{(\tau-1)}}C +
-%     \nabla_{\mathbf{h}^{(\tau)}}C \\
-% \end{align*}
+\begin{align*}
+    z_t &= Ux_t + Wh_{t-1} + b_t \\
+    h_t &=  \sigma(z_t) \\
+    o_t &=  Vh_t + c_t \\
+    y_t &=  \sigma(Vh_t + c_t) \\
+    C^t &= C(y_t,\hat{y_t}) \\
+    \frac{\delta C_t}{\delta W} &= \frac{\delta C_t}{\delta y_t}
+    \cdot \sum^n_{k=1}\left[\frac{\delta h_t}{\delta h_.}\cdot\right] \frac{\delta h_k}{W}
+\end{align*}
 
 \end{document}
