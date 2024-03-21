@@ -63,3 +63,20 @@ class AdaGrad(Optimiser):
         # correct to use @?
         self.update = self.learning_rate / (alpha+self.epsilon) * params
         return self.update
+
+
+def clip_gradient(gradient_vector: np.ndarray, threshold: float) -> np.ndarray:
+	"""
+	Finds l2-norm of gradient vector and normalizes it.
+	TODO Find out if actual delta parameters are the one to be adjusted 
+	to make norm of grad vector be within threshold, or if just scaling the 
+	grad vector itself suffices
+	"""
+	grad_norm = np.linalg.norm(gradient_vector)
+	#Only need positive threshold check as l2 norm ensues we only get 
+	#positive norm values
+	if grad_norm > threshold:
+		gradient_vector = (threshold/grad_norm)*gradient_vector
+	else:
+		return gradient_vector
+	return gradient_vector
