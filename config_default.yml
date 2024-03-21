@@ -1,0 +1,15 @@
+init:
+  hidden_activation: Relu()
+  output_activation: Tanh()
+  loss_function: mse()
+  optimiser: Adam()
+  regression: True
+  classification: False
+  name: "Your mom"
+fit:
+  X: "../embedding_test.txt"
+  y: "../embedding_test.txt"
+  epochs: 1000
+  num_hidden_states: 5
+  num_hidden_nodes: 10
+  is_text: True
