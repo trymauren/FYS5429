@@ -22,8 +22,10 @@ class ReccurentNN:
             optimiser: Callable = None,
             regression: bool = False,
             classification: Callable = False,
+            seed: int = 24,
             name: str = 'rnn') -> None:
 
+        np.random.seed(seed)
         # Setting activation functions, loss function and optimiser
         if not hidden_activation:
             hidden_activation = Relu()
@@ -55,6 +57,10 @@ class ReccurentNN:
         self.xs, self.hs, self.ys = None, None, None
 
         self.name = name
+
+        self.stats = {
+            'other stuff': [],
+        }
 
     def _forward(
             self,
@@ -89,7 +95,6 @@ class ReccurentNN:
             h_t = self._hidden_activation(z)
             self.hs[t] = h_t
             self.ys[t] = self._output_activation(self.w_hy @ self.hs[t])
-            self._loss_function(self.ys[t], y_partition[t])
         return self.ys
 
     def _backward(
@@ -169,12 +174,12 @@ class ReccurentNN:
             prev_grad_h_Cost = d_act @ self.w_hh.T @ grad_h_Cost
 
         # Weight updates:
-        self.w_hy += deltas_w_hy
-        self.w_hh += deltas_w_hh
-        self.w_xh += deltas_w_xh
+        self.w_hy += 0.01 * deltas_w_hy
+        self.w_hh += 0.01 * deltas_w_hh
+        self.w_xh += 0.01 * deltas_w_xh
         # Bias updates
-        self.w_hy += deltas_b_hy
-        self.w_hh += deltas_b_hh
+        self.w_hy += 0.01 * deltas_b_hy
+        self.w_hh += 0.01 * deltas_b_hh
         # self._optimiser(
         #         deltas_w_hy=deltas_w_hy,
         #         deltas_w_hh=deltas_w_hh,
@@ -189,6 +194,7 @@ class ReccurentNN:
             epochs: int,
             num_hidden_states: int = 5,
             num_hidden_layers: int = 5,
+            learning_rate: float = 0.01
             ) -> None:
         """
         Method for training the RNN, iteratively runs _forward(), and
@@ -246,10 +252,11 @@ _
         X_split = np.split(X, partitions, axis=0)
         y_split = np.split(y, partitions, axis=0)
 
+        self.stats['loss'] = [0]*epochs
         # Run training
         for e in range(epochs):
 
-            for X_partition, y_partition in zip(X_split, y_split):
+            for idx, (X_partition, y_partition) in enumerate(zip(X_split, y_split)):
 
                 y_pred = self._forward(
                     X_partition,
@@ -263,17 +270,19 @@ _
                     num_hidden_layers
                 )
 
+                self.loss(self.ys, y_partition, idx)
+
         read_load_model.save_model(  # pickle dump the trained estimator
             self,
             'saved_models/',
             self.name
         )
 
-        return self._forward(
-            X,
-            y,
-            num_hidden_states
-        )
+        # return self._forward(
+        #     X,
+        #     y,
+        #     num_hidden_states
+        # )
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         # TODO: add some assertions/ checks
@@ -358,3 +367,10 @@ _
         self.hs = np.zeros((num_hidden_states, num_hidden_layers))
         self.xs = np.zeros((num_hidden_states, num_hidden_layers))
         self.ys = np.zeros((num_hidden_states, output_size))
+
+    def loss(self, y_true, y_pred, epoch):
+        loss = self._loss_function(y_true, y_pred)
+        self.stats['loss'][epoch] += np.mean(loss)
+
+    def get_stats(self):
+        return self.stats
