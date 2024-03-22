@@ -1,12 +1,13 @@
 import numpy as np
 from scipy.special import expit  # used for sigmoid
-from abc import abstractmethod
+from collections.abc import Callable
 # https://dustinstansbury.github.io/theclevermachine/derivation-common-neural-network-activation-functions
 
 """
 Creds to "https://github.com/ddbourgin/numpy-ml/blob/master/numpy_ml/
 neural_nets/activations/activations.py#L73-L137" for the setup
 """
+
 
 class Activation():
     def __init__(self):
@@ -15,19 +16,14 @@ class Activation():
     def __call__(self, z):
         return self.eval(z)
 
-    @abstractmethod
-    def eval(self, z):
-        raise NotImplementedError
-
-    @abstractmethod
-    def grad(self, z):
-        raise NotImplementedError
-
 
 class Relu(Activation):
 
     def __init__(self):
         super().__init__()
+
+    def eval(self, z):
+        return self.eval(z)
 
     def eval(self, z):
         """Returns a np.ndarray with same dimensions as z"""
@@ -47,6 +43,9 @@ class Tanh(Activation):
         super().__init__()
 
     def eval(self, z):
+        return self.eval(z)
+
+    def eval(self, z):
         """Returns a np.ndarray with same dimensions as z"""
         return np.tanh(z)
 
@@ -62,6 +61,9 @@ class Sigmoid(Activation):
 
     def __init__(self):
         super().__init__()
+
+    def eval(self, z):
+        return self.eval(z)
 
     def eval(self, z):
         """Returns a np.ndarray with same dimensions as z"""
