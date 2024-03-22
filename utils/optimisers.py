@@ -1,14 +1,21 @@
 import sys
 import git
 import numpy as np
+from abc import abstractmethod
 path_to_root = git.Repo('.', search_parent_directories=True).working_dir
 sys.path.append(path_to_root)
 
 
 class Optimiser():
 
-    def __init__(learning_rate: float = 0.003):
+    def __init__(
+            self,
+            learning_rate: float = 0.003
+            ):
         self.learning_rate = learning_rate
+
+    def __call__(self, params):
+        return self.step(params)
 
 
 class SGD(Optimiser):
@@ -20,10 +27,12 @@ class SGD(Optimiser):
 
         super().__init__()
         self.learning_rate = learning_rate
-        self.update = np.zeros(num_params)
 
     def step(self, params):
-        self.update = self.learning_rate * params
+        self.update = [0]*len(params)
+        for idx, param in enumerate(params):
+            self.update[idx] = self.learning_rate*param
+        return self.update
 
 
 class SGD_momentum(Optimiser):
@@ -31,17 +40,22 @@ class SGD_momentum(Optimiser):
     def __init__(
             self,
             learning_rate: float = 0.003,
-            momentum_coef: float = 0.1,
+            momentum_rate: float = 0.001,
             ):
 
         super().__init__()
         self.learning_rate = learning_rate
         self.momentum_rate = momentum_rate
-        self.update = 0
+        self.update = None
 
     def step(self, params):
-        momentum = self.momentum_rate*self.update
-        self.update = momentum + self.learning_rate*params
+        if self.update is None:
+            self.update = [0]*len(params)
+
+        momentum = [0]*len(params)
+        for idx, param in enumerate(params):
+            momentum = self.momentum_rate*self.update[idx]
+            self.update[idx] = momentum+self.learning_rate*param
         return self.update
 
 
@@ -53,30 +67,36 @@ class AdaGrad(Optimiser):
             ):
 
         super().__init__()
-        self.momentum = momentum
         self.epsilon = epsilon
-        self.sum_squared_gradients = np.zeros(num_params)
+        self.alphas = None
+        self.update = None
 
     def step(self, params):
-        self.sum_squared_gradients += np.square(params)
-        self.alpha = np.sqrt(sum_squared_gradients)
-        # correct to use @?
-        self.update = self.learning_rate / (alpha+self.epsilon) * params
+        if self.alphas is None:
+            self.alphas = [0]*len(params)
+            self.update = [0]*len(params)
+
+        for idx, param in enumerate(params):
+            self.alphas[idx] += np.square(param)
+            coef = np.sqrt(self.alphas[idx] + self.epsilon)
+            adagrad = param / coef
+            self.update[idx] = self.learning_rate * adagrad
+
         return self.update
 
 
 def clip_gradient(gradient_vector: np.ndarray, threshold: float) -> np.ndarray:
-	"""
-	Finds l2-norm of gradient vector and normalizes it.
-	TODO Find out if actual delta parameters are the one to be adjusted 
-	to make norm of grad vector be within threshold, or if just scaling the 
-	grad vector itself suffices
-	"""
-	grad_norm = np.linalg.norm(gradient_vector)
-	#Only need positive threshold check as l2 norm ensues we only get 
-	#positive norm values
-	if grad_norm > threshold:
-		gradient_vector = (threshold/grad_norm)*gradient_vector
-	else:
-		return gradient_vector
-	return gradient_vector
+    """
+    Finds l2-norm of gradient vector and normalizes it.
+    TODO Find out if actual delta parameters are the one to be adjusted 
+    to make norm of grad vector be within threshold, or if just scaling the 
+    grad vector itself suffices
+    """
+    grad_norm = np.linalg.norm(gradient_vector)
+    #Only need positive threshold check as l2 norm ensues we only get 
+    #positive norm values
+    if grad_norm > threshold:
+        gradient_vector = (threshold/grad_norm)*gradient_vector
+    else:
+        return gradient_vector
+    return gradient_vector
