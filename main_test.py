@@ -35,8 +35,8 @@ def create_sines(examples=10, seq_length=100):
 
 seq_length = 20
 examples = 50
-epo = 1500
-hidden_nodes = 300
+epo = 10000
+hidden_nodes = 50
 rnn = RNN(
     hidden_activation='Tanh()',
     output_activation='Tanh()',
@@ -44,31 +44,16 @@ rnn = RNN(
     optimiser='AdaGrad()',
     regression=True)
 
-#X, y = create_sines(examples=examples, seq_length=seq_length)
-#X_val, y_val = create_sines(examples=1, seq_length=seq_length)
-word_emb = word_embedding()
-
-X = np.array(
-    [word_emb.get_embeddings(text_proc.read_file("utils/embedding_test.txt"))]
-    )
-print(X.shape)
-y = np.array(
-    [word_emb.get_embeddings(text_proc.read_file("utils/embedding_test_y.txt"))]
-    )
-
+X, y = create_sines(examples=examples, seq_length=seq_length)
+X_val, y_val = create_sines(examples=1, seq_length=seq_length)
 whole_sequence_output, hidden_state = rnn.fit(
-    X, y, epo, learning_rate=0.002,
+    X, y, epo, learning_rate=0.0001, num_hidden_states=seq_length,
     num_hidden_nodes=hidden_nodes, return_sequences=True)
 
 plt.plot(rnn.get_stats()['loss'])
 plt.show()
-x_seed = X[0][0]
-print(word_emb.find_closest(x_seed, number=1))
-ret = rnn.predict(x_seed, hidden_state, 10)
-#print(ret.shape)
-for emb in ret:
-    word = word_emb.find_closest(emb,number=3)
-    print(word)
+x_seed = np.array([1])
+ret = rnn.predict(x_seed, hidden_state, 4)
 plt.plot(ret)
 plt.show()
 # X, y = create_sines(examples=examples, seq_length=50)

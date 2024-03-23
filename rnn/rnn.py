@@ -190,6 +190,7 @@ class RNN:
         deltas = [deltas_w_hy, deltas_w_hh, deltas_w_xh,
                   deltas_b_hy, deltas_b_hh]
         steps = self._optimiser(deltas, self.learning_rate)
+        steps = self._optimiser(deltas, self.learning_rate)
 
         for param, step in zip(params, steps):
             param -= step
