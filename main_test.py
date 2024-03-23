@@ -5,7 +5,7 @@ from rnn.rnn import RNN
 from utils.activations import Relu, Tanh
 import matplotlib.pyplot as plt
 import utils.text_processing as text_proc
-from utils.text_processing import word_embedding
+from utils.text_processing import WORD_EMBEDDING
 path_to_root = git.Repo('.', search_parent_directories=True).working_dir
 sys.path.append(path_to_root)
 

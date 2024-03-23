@@ -19,7 +19,7 @@ from importlib import import_module
 path_to_root = git.Repo('.', search_parent_directories=True).working_dir
 sys.path.append(path_to_root)
 
-class rnn_not_nonsense():
+class RNN_NOT_NONSENSE():
 
     def __init__(self,train : bool = True, config: Dict | Path | str = "default"):
         self.config = self._load_config(config)

@@ -12,7 +12,7 @@ from utils.loss_functions import Mean_Square_Loss as mse
 from utils.optimisers import SGD, SGD_momentum, AdaGrad
 from utils import read_load_model
 import utils.text_processing as text_proc
-from utils.text_processing import word_embedding
+from utils.text_processing import WORD_EMBEDDING
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 

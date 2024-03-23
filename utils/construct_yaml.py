@@ -2,7 +2,7 @@ import yaml
 import numpy as np
 from utils.activations import *
 from utils import text_processing
-from text_processing import word_embedding
+from text_processing import WORD_EMBEDDING
 
 
 def data_constructor(loader: yaml.SafeLoader, node :yaml.nodes.MappingNode) ->\
