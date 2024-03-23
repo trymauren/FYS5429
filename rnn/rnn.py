@@ -88,6 +88,9 @@ class RNN:
         X_partition:
             - A partition of samples
 
+        generate:
+            - Whether to insert output at time t=1 as input at time t=2
+
         Returns:
         -------------------------------
         None
@@ -178,13 +181,6 @@ class RNN:
             To emphasize: the part before the "+" in 10.21 in DLB"""
             prev_grad_h_Cost = d_act @ self.w_hh.T @ grad_h_Cost
 
-        # # Weight updates:
-        # self.w_hy += 0.01 * deltas_w_hy
-        # self.w_hh += 0.01 * deltas_w_hh
-        # self.w_xh += 0.01 * deltas_w_xh
-        # # Bias updates
-        # self.w_hy += 0.01 * deltas_b_hy
-        # self.w_hh += 0.01 * deltas_b_hh
         params = [self.w_hy, self.w_hh, self.w_xh,
                   self.b_hy, self.b_hh]
         deltas = [deltas_w_hy, deltas_w_hh, deltas_w_xh,
@@ -204,7 +200,7 @@ class RNN:
             num_hidden_nodes: int = 5,
             num_backsteps: int = None,
             return_sequences: bool = False,
-            ) -> None:
+            ) -> np.ndarray:
         """
         Method for training the RNN, iteratively runs _forward(), and
         _backwards() to predict values, find loss and adjust weights
@@ -229,18 +225,27 @@ _
                                     (1 epoch = iterate through all samples
                                      in X)
 
+        learning_rate: float,
+
         num_hidden_states : int
             - Number of times to unroll the rnn architecture
 
         num_hidden_nodes : int
-            - Number of fully connected layers to add
+            - Number of fully connected hidden nodes to add
+
+        num_backsteps : int
+            - Number of hidden states to backpropagate through
+
+        return_sequences : bool
+            - Whether to return content of all output states (self.ys)
+              or only the last output states. The shape will be... INSERT
 
         Returns:
         -------------------------------
         if return_sequences=True:
-            tensor, shape = (num_hidden_states, time_steps, output_size)
+            np.ndarray, shape = (num_hidden_states, time_steps, output_size)
         else:
-            tensor, shape = (num_hidden_states, output_size)
+            np.ndarray, shape = (num_hidden_states, output_size)
         """
 
         X = np.array(X, dtype=object)
