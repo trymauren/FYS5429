@@ -1,21 +1,89 @@
 import sys
 import git
 import numpy as np
+from abc import abstractmethod
 path_to_root = git.Repo('.', search_parent_directories=True).working_dir
 sys.path.append(path_to_root)
 
 
 class Optimiser():
-    pass
+
+    def __init__(
+            self,
+            learning_rate: float = 0.003
+            ):
+        self.learning_rate = learning_rate
+
+    def __call__(self, params):
+        return self.step(params)
+
 
 class SGD(Optimiser):
-    pass
 
-class Adam(Optimiser):
-    pass
- 
-class lbfgs(Optimiser): 
-    pass
+    def __init__(
+            self,
+            learning_rate: float = 0.003,
+            ):
+
+        super().__init__()
+        self.learning_rate = learning_rate
+
+    def step(self, params):
+        self.update = [0]*len(params)
+        for idx, param in enumerate(params):
+            self.update[idx] = self.learning_rate*param
+        return self.update
+
+
+class SGD_momentum(Optimiser):
+
+    def __init__(
+            self,
+            learning_rate: float = 0.003,
+            momentum_rate: float = 0.001,
+            ):
+
+        super().__init__()
+        self.learning_rate = learning_rate
+        self.momentum_rate = momentum_rate
+        self.update = None
+
+    def step(self, params):
+        if self.update is None:
+            self.update = [0]*len(params)
+
+        momentum = [0]*len(params)
+        for idx, param in enumerate(params):
+            momentum = self.momentum_rate*self.update[idx]
+            self.update[idx] = momentum+self.learning_rate*param
+        return self.update
+
+
+class AdaGrad(Optimiser):
+
+    def __init__(
+            self,
+            epsilon=1e-15,
+            ):
+
+        super().__init__()
+        self.epsilon = epsilon
+        self.alphas = None
+        self.update = None
+
+    def step(self, params):
+        if self.alphas is None:
+            self.alphas = [0]*len(params)
+            self.update = [0]*len(params)
+
+        for idx, param in enumerate(params):
+            self.alphas[idx] += np.square(param)
+            coef = np.sqrt(self.alphas[idx] + self.epsilon)
+            adagrad = param / coef
+            self.update[idx] = self.learning_rate * adagrad
+
+        return self.update
+
 
 def clip_gradient(gradient_vector: np.ndarray, threshold: float) -> np.ndarray:
     """

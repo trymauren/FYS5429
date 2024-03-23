@@ -26,18 +26,19 @@ class Mean_Square_Loss(LossFunction):
     def eval(self, y_true, y_pred):
         self.y_pred = y_pred
         self.y_true = y_true
-        self.loss = np.square(np.subtract(y_true, y_pred)).mean(axis=0)
+        loss = np.square(np.subtract(y_true, y_pred)).mean(axis=0)
+        if self.loss is None:
+            self.loss = loss
+        else:
+            self.loss += loss
         return self.loss
 
     # not tested and verified:
-    def grad(self, loss=None):
-        if self.loss is None and loss is None:
-            print('raise error')  # TODO
-        elif not (loss is None):
-            self.loss = loss
+    def grad(self):
         grad = (2
                 * np.array([np.subtract(self.y_pred, self.y_true)]).T
                 / len(self.y_pred))
+        self.loss = None
         return grad
 
 # class Classification_Logloss(LossFunction):
