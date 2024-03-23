@@ -13,7 +13,7 @@ def read_file(filename : str) -> np.ndarray:
                              characters!")
     # solves problem with empty strings left in res.
     #   -> probably not very scalable. consider handling differently
-    return np.array(text)
+    return text
 
 class word_embedding():
     def __init__(self) -> None:
@@ -35,7 +35,7 @@ class word_embedding():
         doc = self.nlp(text)
         for token in doc:
             embeddings.append(token.vector)
-        return embeddings
+        return np.array(embeddings)
 
     #def get_similarity(self, embedding1: np.ndarray, embedding2: np.ndarray) \
     #    -> float:

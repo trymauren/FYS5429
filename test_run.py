@@ -1,5 +1,5 @@
 from rnn_not_nonsense import rnn_not_nonsense
-from utils.word_embedding import *
+from utils.text_processing import word_embedding
 import numpy as np
 
 rnn = rnn_not_nonsense(train=False)
