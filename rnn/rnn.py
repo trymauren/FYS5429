@@ -11,7 +11,8 @@ from utils.activations import Relu, Tanh
 from utils.loss_functions import Mean_Square_Loss as mse
 from utils.optimisers import SGD, SGD_momentum, AdaGrad
 from utils import read_load_model
-from utils.word_embedding import word_embedding
+import utils.text_processing as text_proc
+from utils.text_processing import word_embedding
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
@@ -72,36 +73,6 @@ class RNN:
         self.stats = {
             'other stuff': [],
         }
-
-    def windowed_data(
-            self,
-            X: np.ndarray,
-            num_hidden_states: int
-            ) -> np.ndarray:
-
-        split_X = []
-        split_y = []
-        for t in range(len(X)-num_hidden_states-1):
-            split_X.append(X[t:(t + num_hidden_states)])
-            split_y.append(X[t+1: t+num_hidden_states+1])
-
-        return split_X, split_y
-
-    def format_data(
-            self,
-            X,
-            is_text: bool
-            ) -> None:
-
-        formatted_X = None
-        if is_text:
-            formatted_X = word_embedding.read_txt(X)
-        else:
-            formatted_X = []
-            for data in zip(X):
-                formatted_X.append(float(data))
-            formatted_X = np.array(formatted_X)
-        return formatted_X
 
     def _forward(
             self,
