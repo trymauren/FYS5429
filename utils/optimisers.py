@@ -6,77 +6,33 @@ sys.path.append(path_to_root)
 
 
 class Optimiser():
-
-    def __init__(learning_rate: float = 0.003):
-        self.learning_rate = learning_rate
-
+    pass
 
 class SGD(Optimiser):
+    pass
 
-    def __init__(
-            self,
-            learning_rate: float = 0.003,
-            ):
-
-        super().__init__()
-        self.learning_rate = learning_rate
-        self.update = np.zeros(num_params)
-
-    def step(self, params):
-        self.update = self.learning_rate * params
-
-
-class SGD_momentum(Optimiser):
-
-    def __init__(
-            self,
-            learning_rate: float = 0.003,
-            momentum_coef: float = 0.1,
-            ):
-
-        super().__init__()
-        self.learning_rate = learning_rate
-        self.momentum_rate = momentum_rate
-        self.update = 0
-
-    def step(self, params):
-        momentum = self.momentum_rate*self.update
-        self.update = momentum + self.learning_rate*params
-        return self.update
-
-
-class AdaGrad(Optimiser):
-
-    def __init__(
-            self,
-            epsilon=1e-15,
-            ):
-
-        super().__init__()
-        self.momentum = momentum
-        self.epsilon = epsilon
-        self.sum_squared_gradients = np.zeros(num_params)
-
-    def step(self, params):
-        self.sum_squared_gradients += np.square(params)
-        self.alpha = np.sqrt(sum_squared_gradients)
-        # correct to use @?
-        self.update = self.learning_rate / (alpha+self.epsilon) * params
-        return self.update
-
+class Adam(Optimiser):
+    pass
+ 
+class lbfgs(Optimiser): 
+    pass
 
 def clip_gradient(gradient_vector: np.ndarray, threshold: float) -> np.ndarray:
-	"""
-	Finds l2-norm of gradient vector and normalizes it.
-	TODO Find out if actual delta parameters are the one to be adjusted 
-	to make norm of grad vector be within threshold, or if just scaling the 
-	grad vector itself suffices
-	"""
-	grad_norm = np.linalg.norm(gradient_vector)
-	#Only need positive threshold check as l2 norm ensues we only get 
-	#positive norm values
-	if grad_norm > threshold:
-		gradient_vector = (threshold/grad_norm)*gradient_vector
-	else:
-		return gradient_vector
-	return gradient_vector
+    """
+    Finds l2-norm of gradient vector and normalizes it.
+    TODO Find out if actual delta parameters are the ones to be adjusted 
+    to make norm of grad vector be within threshold, or if just scaling 
+    the grad vector itself suffices
+    EDIT: found what seems to be an answer to exactly how the clipping 
+    is done, it seems it's only scaling of the actual gradient: 
+    https://towardsdatascience.com/what-is-gradient-clipping-b8e815cdfb48
+    g = g*(threshold/l2norm(g)) or g = threshold*(g/l2norm(g))
+    """
+    grad_norm = np.linalg.norm(gradient_vector, ord=2, axis=0)
+    #Only need positive threshold check as l2 norm ensues we only get 
+    #positive norm values
+    if grad_norm > threshold:
+        gradient_vector = gradient_vector * (threshold/grad_norm)
+    else:
+        return gradient_vector
+    return gradient_vector
