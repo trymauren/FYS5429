@@ -1,6 +1,6 @@
 import numpy as np
 
-def convert_txt_int(self, text) -> np.array():
+def convert_txt_int(self, text) -> np.ndarray:
     with open(text, "r") as text:
        ascii_list = np.array(list(text))
 

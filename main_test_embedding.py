@@ -5,14 +5,14 @@ from rnn.rnn import RNN
 from utils.activations import Relu, Tanh
 import matplotlib.pyplot as plt
 import utils.text_processing as text_proc
-from utils.text_processing import word_embedding
+from utils.text_processing import WORD_EMBEDDING
 path_to_root = git.Repo('.', search_parent_directories=True).working_dir
 sys.path.append(path_to_root)
 
-seq_length = 20
+seq_length = 6
 examples = 50
 epo = 1500
-hidden_nodes = 300
+hidden_nodes = 600
 rnn = RNN(
     hidden_activation='Tanh()',
     output_activation='Tanh()',
@@ -20,7 +20,7 @@ rnn = RNN(
     optimiser='AdaGrad()',
     regression=True)
 
-word_emb = word_embedding()
+word_emb = WORD_EMBEDDING()
 
 X = np.array(
     [word_emb.get_embeddings(text_proc.read_file("utils/embedding_test.txt"))]

@@ -1,9 +1,9 @@
-from rnn_not_nonsense import rnn_not_nonsense
-from utils.text_processing import word_embedding
+from rnn_not_nonsense import RNN_NOT_NONSENSE
+from utils.text_processing import WORD_EMBEDDING
 import numpy as np
 
-rnn = rnn_not_nonsense(train=False)
-word_embeddings = word_embedding()
+rnn = RNN_NOT_NONSENSE(train=False)
+word_embeddings = WORD_EMBEDDING()
 #X_data = word_embedding.get_embeddings(word_embeddings,
 #"There was a big black cat in the house on top of the small green hill, it does what it will.\
 #There was a big black cat in the house on top of the small green hill, it does what it will.\
