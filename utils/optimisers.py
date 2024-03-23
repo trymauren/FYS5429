@@ -10,25 +10,22 @@ class Optimiser():
 
     def __init__(
             self,
-            learning_rate: float = 0.003
             ):
-        self.learning_rate = learning_rate
+        pass
 
-    def __call__(self, params):
-        return self.step(params)
+    def __call__(self, params, learning_rate=None):
+        return self.step(params, learning_rate)
 
 
 class SGD(Optimiser):
 
     def __init__(
             self,
-            learning_rate: float = 0.003,
             ):
-
         super().__init__()
-        self.learning_rate = learning_rate
 
-    def step(self, params):
+    def step(self, params, learning_rate):
+        self.learning_rate = learning_rate
         self.update = [0]*len(params)
         for idx, param in enumerate(params):
             self.update[idx] = self.learning_rate*param
@@ -39,16 +36,15 @@ class SGD_momentum(Optimiser):
 
     def __init__(
             self,
-            learning_rate: float = 0.003,
             momentum_rate: float = 0.001,
             ):
 
         super().__init__()
-        self.learning_rate = learning_rate
         self.momentum_rate = momentum_rate
         self.update = None
 
-    def step(self, params):
+    def step(self, params, learning_rate):
+        self.learning_rate = learning_rate
         if self.update is None:
             self.update = [0]*len(params)
 
@@ -71,7 +67,8 @@ class AdaGrad(Optimiser):
         self.alphas = None
         self.update = None
 
-    def step(self, params):
+    def step(self, params, learning_rate):
+        self.learning_rate = learning_rate
         if self.alphas is None:
             self.alphas = [0]*len(params)
             self.update = [0]*len(params)
