@@ -9,10 +9,10 @@ from utils.text_processing import WORD_EMBEDDING
 path_to_root = git.Repo('.', search_parent_directories=True).working_dir
 sys.path.append(path_to_root)
 
-seq_length = 6
+seq_length = 20
 examples = 50
 epo = 1500
-hidden_nodes = 600
+hidden_nodes = 300
 rnn = RNN(
     hidden_activation='Tanh()',
     output_activation='Tanh()',
@@ -21,14 +21,11 @@ rnn = RNN(
     regression=True)
 
 word_emb = WORD_EMBEDDING()
+X = np.array([word_emb.get_embeddings(str(s)) for s in text_proc.read_sentence("utils/embedding_test.txt")])
 
-X = np.array(
-    [word_emb.get_embeddings(text_proc.read_file("utils/embedding_test.txt"))]
-    )
-print(X.shape)
-y = np.array(
-    [word_emb.get_embeddings(text_proc.read_file("utils/embedding_test_y.txt"))]
-    )
+print("X shape " + str(X.shape))
+y = np.array([word_emb.get_embeddings(str(s)) for s in text_proc.read_sentence("utils/embedding_test_y.txt")])
+
 
 whole_sequence_output, hidden_state = rnn.fit(
     X, y, epo, learning_rate=0.002,
