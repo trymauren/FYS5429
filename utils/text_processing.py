@@ -51,9 +51,10 @@ def read_sentence(filename : str) -> np.ndarray:
     """
     text = ""
     with open(filename,"r") as f:
+        text = f.read()
         #TODO: this split is defo not correct lol, have to change to 
         #split in the whitespace right after !,? or .
-        text = [s for s in f.split("\."|"\!"|"\?", f)]
+        text = text.split(r"(?<!\w\.\w.)(?<![A-Z]\.)(?<![A-Z][a-z]\.)(?<=\.|\?)")
     return np.array(text)
 
 
@@ -137,7 +138,7 @@ class WORD_EMBEDDING():
 if __name__ == "__main__":
     res = read_file("embedding_test.txt")
     # print(res, type(res))
-    emb_obj = word_embedding()
+    emb_obj = WORD_EMBEDDING()
     emb = emb_obj.get_embeddings(str(res))
     for token in emb:
         print(emb_obj.find_closest(token, 1))
