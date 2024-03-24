@@ -88,6 +88,9 @@ class RNN:
         X_partition:
             - A partition of samples
 
+        generate:
+            - Whether to insert output at time t=1 as input at time t=2
+
         Returns:
         -------------------------------
         None
@@ -178,13 +181,6 @@ class RNN:
             To emphasize: the part before the "+" in 10.21 in DLB"""
             prev_grad_h_Cost = d_act @ self.w_hh.T @ grad_h_Cost
 
-        # # Weight updates:
-        # self.w_hy += 0.01 * deltas_w_hy
-        # self.w_hh += 0.01 * deltas_w_hh
-        # self.w_xh += 0.01 * deltas_w_xh
-        # # Bias updates
-        # self.w_hy += 0.01 * deltas_b_hy
-        # self.w_hh += 0.01 * deltas_b_hh
         params = [self.w_hy, self.w_hh, self.w_xh,
                   self.b_hy, self.b_hh]
         deltas = [deltas_w_hy, deltas_w_hh, deltas_w_xh,
@@ -204,7 +200,8 @@ class RNN:
             num_hidden_nodes: int = 5,
             num_backsteps: int = None,
             return_sequences: bool = False,
-            ) -> None:
+            independent_samples: bool = True,
+            ) -> np.ndarray:
         """
         Method for training the RNN, iteratively runs _forward(), and
         _backwards() to predict values, find loss and adjust weights
@@ -229,22 +226,37 @@ _
                                     (1 epoch = iterate through all samples
                                      in X)
 
+        learning_rate: float,
+
         num_hidden_states : int
             - Number of times to unroll the rnn architecture
 
         num_hidden_nodes : int
-            - Number of fully connected layers to add
+            - Number of fully connected hidden nodes to add
+
+        num_backsteps : int
+            - Number of hidden states to backpropagate through
+
+        return_sequences : bool
+            - Whether to return content of all output states (self.ys)
+              or only the last output states. Shape:
+              If True:
+              shape = (num_hidden_states, time_steps, output_size)
+              If False:
+              shape = (num_hidden_states, output_size)
+
+        return_sequences : bool
+            - Whether to reset initial hidden state between each processed
+              sample in X.
 
         Returns:
         -------------------------------
-        if return_sequences=True:
-            tensor, shape = (num_hidden_states, time_steps, output_size)
-        else:
-            tensor, shape = (num_hidden_states, output_size)
+        (np.ndarray, np.ndarray) = (output states, hidden state)
+
         """
 
-        X = np.array(X, dtype=object)
-        y = np.array(y, dtype=object)
+        X = np.array(X, dtype=object)  # object to allow inhomogeneous shape
+        y = np.array(y, dtype=object)  # object to allow inhomogeneous shape
 
         samples, time_steps, num_features = X.shape
         samples, time_steps_y, output_size = y.shape
@@ -255,12 +267,12 @@ _
         self.num_features = num_features
         self.num_hidden_nodes = num_hidden_nodes
 
-        self._init_weights()
-
         if num_hidden_states is None:
             self.num_hidden_states = time_steps
         else:
             self.num_hidden_states = num_hidden_states
+
+        self._init_weights()
         self._init_states()
 
         partitions = np.floor(time_steps/self.num_hidden_states)
@@ -274,7 +286,9 @@ _
         for e in tqdm(range(epochs)):
 
             for sample in range(samples):
-                self.hs[-1] = 0
+
+                if independent_samples:
+                    self.hs[-1] = 0
 
                 X_split = np.split(X[sample], partitions, axis=0)
                 y_split = np.split(y[sample], partitions, axis=0)
@@ -302,50 +316,39 @@ _
         )
         return sequence_output, self.hs[-1]
 
-    def predict(self, x_seed: np.ndarray, h_seed, time_steps_to_generate) -> np.ndarray:
-        # TODO: add some assertions/ checks
+    def predict(
+            self,
+            x_seed: np.ndarray,
+            h_seed: np.ndarray = None,
+            time_steps_to_generate: int = 1,
+            ) -> np.ndarray:
         """
         Predicts the next value in a sequence of given inputs to the RNN
         network
 
         Parameters:
         -------------------------------
-        X : np.array
-        - sequence of values to have the next one predicted
+        x_seed : np.array
+        - An X-sample to seed generation of samples
+
+        h_seed : np.array
+        - Hidden state value to seed generation of samples
 
         Returns:
         -------------------------------
-        np.array
-        - Predicted next value for the given input sequence
+        np.ndarray
+        - Generated next samples
+
         """
-        # X = np.array(X)
+
         self.hs[-1] = h_seed
         self.num_hidden_states = time_steps_to_generate
         self._init_states()
         X = np.zeros((time_steps_to_generate, len(x_seed)))
         print(X.shape)
         X[0] = x_seed
-        for i in range(1):
-            # prev_h = np.copy(self.hs[-1])
-            y_pred = self._forward(
-                X,
-                generate=True
-            )
-            # self.hs[-1] = prev_h
-            # ret[sample] = y_pred[-1]
+        self._forward(X, generate=True)
         return self.ys
-
-        # # embedding, must be equal to length of num_features from fit()
-        # seed = [2, 4, 1]
-        # time_steps = 100
-        # self.init_states(time_steps)
-        # ret = np.zeros((len(seed), time_steps))
-        # for t in range(time_steps):
-        #     prev_h = np.copy(self.hs[-1])
-        #     # y_pred = self.
-        #     self.hs[-1] = prev_h
-        #     # ret[sample] = y_pred[-1]
-        #     return y_pred
 
     def _init_weights(
             self,
@@ -377,26 +380,18 @@ _
         self.b_hy = np.random.randn(
             self.output_size, self.num_hidden_nodes) * scale
 
-    def _init_states(
-            self,
-            ) -> None:
+    def _init_states(self) -> None:
         """
         Initialises states and assign them to instance variables.
 
         Parameters:
         -------------------------------
-        num_hidden_states : int
-            - Number of times to unroll the rnn architecture.
-              This essentially means how many forward and backward steps
-              are performed per data-partition (per batch).
-
-        num_hidden_nodes : int
-            - Number of fully connected layers to add
-
+        None
         Returns:
         -------------------------------
         None
         """
+
         if self.built:
             prev_h = self.hs[-1]
         self.hs = np.zeros((self.num_hidden_states, self.num_hidden_nodes))
