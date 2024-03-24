@@ -35,9 +35,31 @@
 
 \maketitle
 
-\section{Backpropagation through time - BPTT}
+\section{Introduction}
 
 
+\section{Background}
+
+
+\section{Method}
+The purpose of this project, as mentioned earlier, is to understand the math and implementations underlying a recurrent neural network (RNN). For the implementation of the RNN, no traditional machine learning (ML) libraries has been utilised. The RNN model and its surroundings are implemented using Python, where numpy \cite{NUMPY} is the library taking care of the mathematical implementations such as vector and matrix multiplication. The RNN is implemented in its most basic form, often denoted as a \textit{vanilla RNN}. Nevertheless, the implementation handles a big variety of data types, and allows for configurability of optimisation algorithms and activation functions. The focus of the implementation has been natural language data, but the model can also be used for other time series data, such as learning to predict interest rates, or mimic and generate oscillations like sine waves. None of the implementation exploits graphical processing units (GPUs), and is therefore slower than more advanced implmentations where the power of GPUs is taken advantage of.
+
+
+\subsection{Python implementation}
+
+\subsubsection*{Model architecture}
+The RNN is built as a class, where all nodes and layers are built simply by initialising matrices of dimensions corresponding to the layers. Optimiser, loss function and activation function(s) are initialised at the time of model initialisation. Training and inference is done using these functions. The parameters of the model are always 5: Weights from input to hidden layer (also called the recurrent layer), denoted \texttt{w\_xh}; weights from hidden to hidden, denoted \texttt{w\_hh}; and weights from hidden to output layer, denoted \texttt{w\_hy}. The hidden and output layer also have bias parameters, \texttt{b\_hh} and \texttt{b\_hy}, respectively. The weights and biases are the only parameters learned through experience. In addition, hyperparameters such as number of fully connected hidden nodes, learning rate and number of backpropagation steps are controlled by the user \color{red}(is activation function etc also hyperparameters?)\color{black}. 
+
+\subsubsection*{Random control}
+All experiments using the model is seeded, to ensure reproducable results. Initialisation values of all parameters (not hyperparameters) are drawn from the unit normal distribution \color{red} check this \color{black}, to a value between 0 and 1, multiplied by a scale specified by the user.
+
+
+
+\section{Results}
+
+\section*{Appendix - some math notes}
+
+\subsection*{Backpropagation through time - BPTT}
 Definitions:
 \begin{align}
     \mathbf{a}^{(t)} &= \mathbf{b + Wh^{(t-1)} + Ux^{(t)}} \\
