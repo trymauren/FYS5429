@@ -19,6 +19,7 @@
 \usepackage[nameinlink,noabbrev]{cleveref} % nice for referencing
 
 
+
 \crefname{equation}{equation}{equations}
 \Crefname{equation}{Equation}{Equations}
 \crefname{table}{table}{tables}
@@ -65,9 +66,25 @@ After obtaining the outputs BACKPROP!
 
 
 \subsubsection*{Random control}
-All experiments using the model is seeded, to ensure reproducable results. Initialisation values of all parameters (not hyperparameters) are drawn from the unit normal distribution \color{red} check this \color{black}, to a value between 0 and 1, multiplied by a scale specified by the user.
+All experiments using the model are seeded, to ensure reproducible results. Initialization values of all parameters (not hyperparameters) are drawn from the unit normal distribution \color{red} check this \color{black}, to a value between 0 and 1, multiplied by a scale specified by the user.
 
+\subsection{Text Processing}
+With the nature of RNN allowing for sequential of different lengths to be processed in the RNN with regards to time/order of incoming data, they were used in the early implementations of machine translation and natural language processing (NLP). There are two general main methods text is processed to be represented as numbers understandable for the RNN. The first, simpler, method is One Hot encoding, which is a method used in several serial or sequential dataflow settings, such as in digital circuitry, or in our case Natural language processing. In NLP when using one-hot encoding, the approach is to represent each word as a 1-dimensional vector with a length equal to the size of the used dictionary and having all values except one set to zero, and one value set to 1. This means that if our RNN model uses a 10 000 word dictionary, each word is represented as a vector of size 10 000 containing all zeroes except for a single 1-value which by its placement makes a unique representation for the given word. This One-hot encoding method is the simplest of the two methods to be mentioned here, and it has its downsides. For one, it is a computationally heavy and inefficient way to represent words due to the sheer size each word vector quickly has due to dictionary sizes, and two there are no semantical relationships or similarity between words. 
 
+The alternative word representation technique called word embeddings is more specifically designed with NLP in mind and takes semantic relationships into account. A word embedding is a vector representation of a word where the vector is a 1-dimensional vector of varying length depending on accuracy and dictionary size. In contrast to One-hot encoding, word embedding usually has different float values for each value in the word embedding vector. This enables the words to have unique word embedding due to the sheer amount of different possible combinations when all values in the vector are floating point numbers, and maybe more importantly it allows semantic relationships between words to exist. Semantic relationships in word embeddings are represented through the distance between them in the n-dimensional vector space, e.g. cosine similarity is used to measure this distance. So the more similar or semantically related words are, the closer they are clustered together in the word embedding/vector space.
+
+There are several different techniques used for word embeddings today, the most prevalent being Word2Vec developed by Google which represents a group of word embedding techniques such as Continous-Bag-Of-Words (CBOW) and Skip-Gram. 
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.5\linewidth]{texfiles//images/skip_gram_vs_cbow.png}
+    \caption{CBOW vs Skip-gram word embedding models, \cite{jatnika2019word2vec}}
+    \label{fig:enter-label}
+\end{figure}
+
+When using word embeddings in recurrent neural networks, it is usual to include what is called an embedding layer as the first layer of the network. The function of this layer is to train and tailor the word embeddings to better suit the specific task of the network. The reason I say tailor is because the amount of needed data and computational power to create and train word embedding set for a dictionary of any substantial size is quite large it is normal to use pre-trained word embedding datasets, and fine-tune these through the embedding layer to better suit the task of the specific network. As we were not sure as to what our task for the network would be specifically we decided a static pre-trained word embedding dataset would suffice, meaning we decided to omit the embedding layer and not train the embedding in the dataset any further to fine-tune them for our network. This will probably limit our results a bit, however, given we don't have any specific categories or themes in mind for our training data the, general word embeddings should suffice.
+To take care of the translation to and from the vector space, and find the cosine similarity between word embeddings, we are using the \cite{Spacy} python library, which also provides us with a selection of pre-trained word embedding datasets. These datasets range from the smallest containing 50-dimensional word embeddings to the biggest containing 300-dimensional ones.
+word embeddings
 
 \section{Results}
 
@@ -165,5 +182,9 @@ The code written for BPTT is tricky to read. Below is conversions from math to c
     \frac{\delta C_t}{\delta W} &= \frac{\delta C_t}{\delta y_t}
     \cdot \sum^n_{k=1}\left[\frac{\delta h_t}{\delta h_.}\cdot\right] \frac{\delta h_k}{W}
 \end{align*}
+
+
+\bibliography{texfiles/refs}
+
 
 \end{document}
