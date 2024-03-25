@@ -35,6 +35,7 @@ class RNN:
             name: str = 'rnn',
             config: Dict | Path | str = 'default',
             seed: int = 24,
+            threshold = 5,
             ) -> None:
 
         np.random.seed(seed)
@@ -70,6 +71,8 @@ class RNN:
         self.built = False
 
         self.name = name
+
+        self.threshold = threshold
 
         self.stats = {
             'other stuff': [],
@@ -124,7 +127,7 @@ class RNN:
 
         #NOTE: Implemented gradient clipping, however shape error, 
         #      gradient norm is a list of floats, not one number
-        loss_grad = optimisers.clip_gradient(self._loss_function.grad(),2)
+        loss_grad = optimisers.clip_gradient(self._loss_function.grad(),self.threshold)
         num_backsteps = min(len(self.hs)-1, num_backsteps)
         for t in range(num_backsteps, -1, -1):
 
@@ -146,7 +149,7 @@ class RNN:
             """ NEW """
             # grad_o_Cost = self._loss_function.grad()
             if self.regression:
-                grad_o_Cost_t = loss_grad[:, t], 2
+                grad_o_Cost_t = loss_grad[:, t]
             if self.classification:
                 print('not implemented error')
             """ NEW END """
@@ -162,6 +165,7 @@ class RNN:
             Eq. 16 in tex-document(see also eq. 15 for first iteration of BPPT)
             Eq. 10.20 in DLB"""
             grad_h_Cost = prev_grad_h_Cost + self.w_hy.T @ grad_o_Cost_t
+            grad_h_Cost = optimisers.clip_gradient(grad_h_Cost, self.threshold)
             # print(prev_grad_h_Cost.shape)
             # print(self.w_hy.T.shape)
             # print(grad_h_Cost.shape)
@@ -183,6 +187,7 @@ class RNN:
             This line equals the first part of eq. 10.21 in DLB
             To emphasize: the part before the "+" in 10.21 in DLB"""
             prev_grad_h_Cost = d_act @ self.w_hh.T @ grad_h_Cost
+            prev_grad_h_Cost = prev_grad_h_Cost
 
         params = [self.w_hy, self.w_hh, self.w_xh,
                   self.b_hy, self.b_hh]
@@ -271,7 +276,6 @@ _
 
         self.learning_rate = learning_rate
         self.output_size = output_size
-        print("output shape " + str(output_size))
         self.num_features = num_features
         self.num_hidden_nodes = num_hidden_nodes
 
