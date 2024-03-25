@@ -9,6 +9,7 @@ from collections.abc import Callable
 import yaml
 from utils.activations import Relu, Tanh
 from utils.loss_functions import Mean_Square_Loss as mse
+from utils import optimisers
 from utils.optimisers import SGD, SGD_momentum, AdaGrad
 from utils import read_load_model
 import utils.text_processing as text_proc
@@ -121,7 +122,9 @@ class RNN:
 
         prev_grad_h_Cost = np.zeros_like(self.num_hidden_nodes)
 
-        loss_grad = self._loss_function.grad()
+        #NOTE: Implemented gradient clipping, however shape error, 
+        #      gradient norm is a list of floats, not one number
+        loss_grad = optimisers.clip_gradient(self._loss_function.grad(),2)
         num_backsteps = min(len(self.hs)-1, num_backsteps)
         for t in range(num_backsteps, -1, -1):
 
@@ -143,7 +146,7 @@ class RNN:
             """ NEW """
             # grad_o_Cost = self._loss_function.grad()
             if self.regression:
-                grad_o_Cost_t = loss_grad[:, t]
+                grad_o_Cost_t = loss_grad[:, t], 2
             if self.classification:
                 print('not implemented error')
             """ NEW END """
@@ -185,8 +188,13 @@ class RNN:
                   self.b_hy, self.b_hh]
         deltas = [deltas_w_hy, deltas_w_hh, deltas_w_xh,
                   deltas_b_hy, deltas_b_hh]
+        #clipped_deltas = optimisers.clip_gradient([deltas_w_hy, deltas_w_hh, deltas_w_xh,
+        #          deltas_b_hy, deltas_b_hh], 2)
         steps = self._optimiser(deltas, self.learning_rate)
         steps = self._optimiser(deltas, self.learning_rate)
+
+        #steps = self._optimiser(clipped_deltas, self.learning_rate)
+        #steps = self._optimiser(clipped_deltas, self.learning_rate)
 
         for param, step in zip(params, steps):
             param -= step
@@ -263,7 +271,7 @@ _
 
         self.learning_rate = learning_rate
         self.output_size = output_size
-        print(output_size)
+        print("output shape " + str(output_size))
         self.num_features = num_features
         self.num_hidden_nodes = num_hidden_nodes
 
@@ -345,7 +353,6 @@ _
         self.num_hidden_states = time_steps_to_generate
         self._init_states()
         X = np.zeros((time_steps_to_generate, len(x_seed)))
-        print(X.shape)
         X[0] = x_seed
         self._forward(X, generate=True)
         return self.ys
