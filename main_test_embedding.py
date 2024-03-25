@@ -11,14 +11,15 @@ sys.path.append(path_to_root)
 
 seq_length = 20
 examples = 50
-epo = 1500
-hidden_nodes = 300
+epo = 200
+hidden_nodes = 50
 rnn = RNN(
     hidden_activation='Tanh()',
     output_activation='Tanh()',
     loss_function='mse()',
-    optimiser='AdaGrad()',
-    regression=True)
+    optimiser='SGD()',
+    regression=True,
+    threshold=10)
 
 word_emb = WORD_EMBEDDING()
 X = np.array([word_emb.get_embeddings(str(s)) for s in text_proc.read_sentence("utils/embedding_test.txt")])
