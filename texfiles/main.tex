@@ -48,7 +48,21 @@ The purpose of this project, as mentioned earlier, is to understand the math and
 \subsection{Python implementation}
 
 \subsubsection*{Model architecture}
-The RNN is built as a class, where all nodes and layers are built simply by initialising matrices of dimensions corresponding to the layers. Optimiser, loss function and activation function(s) are initialised at the time of model initialisation. Training and inference is done using these functions. The parameters of the model are always 5: Weights from input to hidden layer (also called the recurrent layer), denoted \texttt{w\_xh}; weights from hidden to hidden, denoted \texttt{w\_hh}; and weights from hidden to output layer, denoted \texttt{w\_hy}. The hidden and output layer also have bias parameters, \texttt{b\_hh} and \texttt{b\_hy}, respectively. The weights and biases are the only parameters learned through experience. In addition, hyperparameters such as number of fully connected hidden nodes, learning rate and number of backpropagation steps are controlled by the user \color{red}(is activation function etc also hyperparameters?)\color{black}. 
+The RNN is built as a class, where all nodes and layers are built simply by initialising matrices of dimensions corresponding to the layers. Optimiser, loss function and activation function(s) are initialised at the time of model initialisation. Training and inference is done using these functions. The parameters of the model are always 5 variables: Weights from input to hidden layer (also called the recurrent layer), denoted \texttt{w\_xh} in code and \texttt{U} in equations; weights from hidden to hidden, denoted \texttt{w\_hh} in code and \texttt{W} in equations; and weights from hidden to output layer, denoted \texttt{w\_hy} in code and \texttt{V} in equations. The bias on the hidden layer is denoted \texttt{b\_hh} in code and \texttt{b} in equations and the bias on the output layer is denoted \texttt{b\_hy} in code and \texttt{c} in equations. The weights and biases mentioned here are the only parameters learned through experience. Non-learned parameters, called hyper-parameters, are explained below. One \textbf{forward pass} of a data sample can be explained in a few equations:
+\begin{align}
+    \mathbf{U} &= \text{weights input $\rightarrow$ hidden} \\
+    \mathbf{W} &= \text{weights hidden $\rightarrow$ hidden} \\
+    \mathbf{V} &= \text{weights hidden $\rightarrow$ output} \\
+    \mathbf{a}^{(t)} &= \mathbf{b + Wh^{(t-1)} + Ux^{(t)}} \\
+    \mathbf{h}^{(t)} &= activation(\mathbf{a}^{(t)})\\
+    \mathbf{o}^{(t)} &= \mathbf{c + Vh}^{(t)} \\
+    \mathbf{\hat{y}}^{(t)} &= postprocessing(\mathbf{o}^{(t)})
+\end{align}
+The computational graph of the vanilla RNN can also be seen in figure \cref{FIGURE}. \\
+When passing data samples through the network, he output vector $o^{(t)}$ (that is, the output vector at time $t$), is dependent both on the data sample at time $t$ as well as the sample at time $t-1$. This time dependency is described more in detail SOME OTHER PLACE?. The time dependency makes training of vanilla RNNs hard to parallelise, because samples must be processed sequentially. In addition to the transformations induced by the weights and biases, two functions are involved in the forward pass: The activation function acting on the hidden layer, and the activation function acting on the output layer. The latter varies, but is typically the softmax function to produce normalised probabilities. For natural language processing (NLP), these probabilities can, in the simplest case, be the probability that the input corresponds to characters in the alphabet.
+
+After obtaining the outputs BACKPROP!
+
 
 \subsubsection*{Random control}
 All experiments using the model is seeded, to ensure reproducable results. Initialisation values of all parameters (not hyperparameters) are drawn from the unit normal distribution \color{red} check this \color{black}, to a value between 0 and 1, multiplied by a scale specified by the user.
