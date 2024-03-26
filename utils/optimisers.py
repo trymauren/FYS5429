@@ -93,18 +93,14 @@ def clip_gradient(gradient_vector: np.ndarray, threshold: float) -> np.ndarray:
     https://towardsdatascience.com/what-is-gradient-clipping-b8e815cdfb48
     g = g*(threshold/l2norm(g)) or g = threshold*(g/l2norm(g))
     """
-    print("Gradient shape " + str(gradient_vector.shape))
     grad_norm_col = np.linalg.norm(gradient_vector, ord=2, axis=1)
     grad_norm = np.linalg.norm(grad_norm_col, ord=2, axis=0)
-    print("grad norm shape" + str(grad_norm.shape))
-    print(grad_norm)
     #grad_norm = np.sqrt(sum((np.sum(g**2)) for g in gradient_vector)) #NOT RIGHT
     
     #Only need positive threshold check as l2 norm ensues we only get 
     #positive norm values
     if grad_norm > threshold:
         gradient_vector = gradient_vector * float(threshold/grad_norm)
-        print(gradient_vector.T.shape)
     else:
         return gradient_vector
-    return np.array([gradient_vector])
+    return gradient_vector
