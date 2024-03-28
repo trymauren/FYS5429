@@ -2,7 +2,7 @@ import numpy as np
 import spacy
 
 
-def read_file(filename : str) -> np.ndarray:
+def read_file(filename : str, seq_length : int, shift : bool = False) -> np.ndarray:
     """
     Parses the given file into a numpy array containing one long string
     up to 100 000 charcters long, the max length is set to be within
@@ -18,6 +18,7 @@ def read_file(filename : str) -> np.ndarray:
     - the text as a single long string as an entry in the array
     """
     text = ""
+    windowed_text = []
     with open(filename, 'r') as f:
         text = f.read()
         len_chars = sum(len(word) for word in text.strip().split())
@@ -25,9 +26,15 @@ def read_file(filename : str) -> np.ndarray:
         if len_chars > 100000:
             raise ValueError("Text file can't contain more than 100 000\
                              characters!")
-    # solves problem with empty strings left in res.
-    #   -> probably not very scalable. consider handling differently
-    return text
+        text_split = text.split()
+        print(text_split)
+        if shift:
+            for i in range(1,len(text_split)-seq_length,seq_length):
+                windowed_text.append(text_split[i:i+seq_length])
+        else:
+            for i in range(0,len(text_split)-seq_length,seq_length):
+                windowed_text.append(text_split[i:i+seq_length])
+    return np.array(windowed_text)
 
 def read_sentence(filename : str) -> np.ndarray:
     """
@@ -68,15 +75,6 @@ class WORD_EMBEDDING():
         self.nlp = spacy.load("en_core_web_lg")
         import en_core_web_lg
         self.nlp = en_core_web_lg.load()
-    
-    #def read_txt(self,file) -> np.array:
-    #    with open(file, 'r') as f:
-    #        paragraphs = f.split("\n\n")
-    #        paragraph_embeddings = []
-    #        for pg in paragraphs:
-    #            paragraph_embeddings.append(self.get_embeddings(pg))
-    #    return np.array(paragraph_embeddings)
-
 
     def get_embeddings(self, text: str) -> np.ndarray:
         """
@@ -136,8 +134,8 @@ class WORD_EMBEDDING():
         return np.array(nearest_words)
     
 if __name__ == "__main__":
-    res = read_file("embedding_test.txt")
-    # print(res, type(res))
+    res = read_file("embedding_test.txt", 5)
+    print(res)
     emb_obj = WORD_EMBEDDING()
     emb = emb_obj.get_embeddings(str(res))
     for token in emb:
