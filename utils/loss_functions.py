@@ -41,12 +41,22 @@ class Mean_Square_Loss(LossFunction):
         self.loss = None
         return grad
 
-# class Classification_Logloss(LossFunction):
 
-#     def __init__(self, n_classes):
-#         self.n_classes = n_classes
-#         super().__init__()
+class Classification_Logloss(LossFunction):
 
-#     def eval(self, y, y_pred):
-#         y_pred = y_pred + LOG_CONST  # to avoid log(0) calculations
-#         return -np.sum(y*np.log(y_pred))
+    def __init__(self):
+        super().__init__()
+
+    def eval(self, y_true, y_pred):
+        y_pred += LOG_CONST  # to avoid log(0) calculations
+        self.y_pred = y_pred
+        self.y_true = y_true
+        self.probabilities = np.exp(y_pred)/np.sum(np.exp(y_pred))
+        return -np.sum(y_true*np.log(self.probabilities))
+
+    def grad(self):
+        probabilities = np.copy(self.probabilities)
+        # for t in range(len(probabilities)):
+        #     probabilities[t] -= self.y_true[t]
+        probabilities -= self.y_true
+        return probabilities.T
