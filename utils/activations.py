@@ -17,13 +17,19 @@ class Activation():
         return self.eval(z)
 
 
-class Relu(Activation):
+class Identity(Activation):
 
     def __init__(self):
         super().__init__()
 
     def eval(self, z):
-        return self.eval(z)
+        return z
+
+
+class Relu(Activation):
+
+    def __init__(self):
+        super().__init__()
 
     def eval(self, z):
         """Returns a np.ndarray with same dimensions as z"""
@@ -43,9 +49,6 @@ class Tanh(Activation):
         super().__init__()
 
     def eval(self, z):
-        return self.eval(z)
-
-    def eval(self, z):
         """Returns a np.ndarray with same dimensions as z"""
         return np.tanh(z)
 
@@ -61,9 +64,6 @@ class Sigmoid(Activation):
 
     def __init__(self):
         super().__init__()
-
-    def eval(self, z):
-        return self.eval(z)
 
     def eval(self, z):
         """Returns a np.ndarray with same dimensions as z"""
