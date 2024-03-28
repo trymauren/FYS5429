@@ -16,9 +16,9 @@
 
 \usepackage{acronym}
 
+\usepackage{glossaries}
+
 \usepackage[nameinlink,noabbrev]{cleveref} % nice for referencing
-
-
 
 \crefname{equation}{equation}{equations}
 \Crefname{equation}{Equation}{Equations}
@@ -33,24 +33,41 @@
 
 \addbibresource{bibliography.bib}
 
+\makeglossaries
+
+\newacronym{ffnn}{FFNN}{Fast-forward neural network}
+\newacronym{ann}{ANN}{Artificial neural network}
+\newacronym{rnn}{RNN}{Recurrent neural network}
+\newacronym{lstm}{LSTM}{Long short-term memory}
+\newacronym{llm}{LLM}{Large language models}
+
+
+
 \begin{document}
 
 \maketitle
 
-\section{Introduction}
+\section{Abstract}
+
+
+
+\section{Curtain-raiser}
+
+Machine learning is becoming a more prominent part of data processing and society day by day, and thus several different approaches to machine learning have emerged as time has passed, such as supervised, unsupervised, and reinforcement learning. The first two of these approaches have seen the most success through the use of \gls{ffnn}s with backpropagation, which are versatile and greatly scalable. One downside of these conventional neural networks is its limitation with regards to processing sequential data, there is no correlation between time dependent data, or data samples passed into the network. There is correlation between datapoints passed into the network at the same time, however if the length of the data to be passed into the network changes, the whole network will have to be initialised again. As a resolution to this problem, artificial neural networks networks designed for the processing of sequential data have been developed, examples of this are \gls{rnn}s, \gls{lstm}, and Transformers, where the latter have had a substantial role in the rapid improvements of \gls{llm} in recent times. The \gls{rnn} is the predecessor of both the \gls{lstm} and the transformer architectures, and it is what we will focus on in this paper. We will focus on the \gls{rnn} architecture because when working with machine learning today there are so many tools available making the process of getting all kinds of neural networks up and running in no time. However, despite enabling developers to develop and deploy products and services at higher rates than previously possible, it also omits the need for the developers to have a deep understanding of what they're working with. That is what we're aiming at in this paper, we aim to develop a thorough understanding of the \gls{rnn} architecture by implementing it from scratch in Python only with Numpy and some supplementary libraries, without the use of any available machine learning tools.
 
 
 \section{Background}
 
+The origin of \gls{rnn} can be said to stem back to the Ising machine in 1925, however, it did not learn, and it was first made adaptive in 1972 by Shun'ichi Amari. In 1982 the Hopkin network was described through the Ising memory model by Amari, and in 1986 the recurrent neural network as we know it today was popularized by David Rumelhart. The appeal of an \gls{rnn} is as mentioned in the introduction the processing of sequential data or time sequences, and the ability to process sequences of different lengths in the same network. 
 
 \section{Method}
-The purpose of this project, as mentioned earlier, is to understand the math and implementations underlying a recurrent neural network (RNN). For the implementation of the RNN, no traditional machine learning (ML) libraries has been utilised. The RNN model and its surroundings are implemented using Python, where numpy \cite{NUMPY} is the library taking care of the mathematical implementations such as vector and matrix multiplication. The RNN is implemented in its most basic form, often denoted as a \textit{vanilla RNN}. Nevertheless, the implementation handles a big variety of data types, and allows for configurability of optimisation algorithms and activation functions. The focus of the implementation has been natural language data, but the model can also be used for other time series data, such as learning to predict interest rates, or mimic and generate oscillations like sine waves. None of the implementation exploits graphical processing units (GPUs), and is therefore slower than more advanced implmentations where the power of GPUs is taken advantage of.
+The purpose of this project, as mentioned earlier, is to understand the math and implementations underlying a recurrent neural network (RNN). For the implementation of the RNN, no traditional machine learning (ML) libraries have been utilised. The RNN model and its surroundings are implemented using Python, where Numpy \cite{NUMPY} is the library taking care of the mathematical implementations such as vector and matrix multiplication. The RNN is implemented in its most basic form, often denoted as a \textit{vanilla RNN}. Nevertheless, the implementation handles a wide variety of data types and allows for configurability of optimisation algorithms and activation functions. The focus of the implementation has been natural language data, however, the model can also be used for other time series data, such as learning to predict interest rates, or mimic and generate oscillations like sine waves. None of the implementations exploits graphical processing units (GPUs) and is therefore slower than more advanced implementations where the power of GPUs is taken advantage of.
 
 
 \subsection{Python implementation}
 
 \subsubsection*{Model architecture}
-The RNN is built as a class, where all nodes and layers are built simply by initialising matrices of dimensions corresponding to the layers. Optimiser, loss function and activation function(s) are initialised at the time of model initialisation. Training and inference is done using these functions. The parameters of the model are always 5 variables: Weights from input to hidden layer (also called the recurrent layer), denoted \texttt{w\_xh} in code and \texttt{U} in equations; weights from hidden to hidden, denoted \texttt{w\_hh} in code and \texttt{W} in equations; and weights from hidden to output layer, denoted \texttt{w\_hy} in code and \texttt{V} in equations. The bias on the hidden layer is denoted \texttt{b\_hh} in code and \texttt{b} in equations and the bias on the output layer is denoted \texttt{b\_hy} in code and \texttt{c} in equations. The weights and biases mentioned here are the only parameters learned through experience. Non-learned parameters, called hyper-parameters, are explained below. One \textbf{forward pass} of a data sample can be explained in a few equations:
+The RNN is built as a class, where all nodes and layers are built simply by initialising matrices of dimensions corresponding to the layers. Optimiser, loss function, and activation function(s) are initialised at the time of model initialisation. Training and inference are done using these functions. The parameters of the model are always 5 variables: Weights from input to hidden layer (also called the recurrent layer), denoted \texttt{w\_xh} in code and \texttt{U} in equations; weights from hidden to hidden, denoted \texttt{w\_hh} in code and \texttt{W} in equations; and weights from hidden to output layer, denoted \texttt{w\_hy} in code and \texttt{V} in equations. The bias on the hidden layer is denoted \texttt{b\_hh} in code and \texttt{b} in equations and the bias on the output layer is denoted \texttt{b\_hy} in code and \texttt{c} in equations. The weights and biases mentioned here are the only parameters learned through experience. Non-learned parameters, called hyper-parameters, are explained below. One \textbf{forward pass} of a data sample can be explained in a few equations:
 \begin{align}
     \mathbf{U} &= \text{weights input $\rightarrow$ hidden} \\
     \mathbf{W} &= \text{weights hidden $\rightarrow$ hidden} \\
@@ -61,7 +78,7 @@ The RNN is built as a class, where all nodes and layers are built simply by init
     \mathbf{\hat{y}}^{(t)} &= postprocessing(\mathbf{o}^{(t)})
 \end{align}
 The computational graph of the vanilla RNN can also be seen in figure \cref{FIGURE}. \\
-When passing data samples through the network, he output vector $o^{(t)}$ (that is, the output vector at time $t$), is dependent both on the data sample at time $t$ as well as the sample at time $t-1$. This time dependency is described more in detail SOME OTHER PLACE?. The time dependency makes training of vanilla RNNs hard to parallelise, because samples must be processed sequentially. In addition to the transformations induced by the weights and biases, two functions are involved in the forward pass: The activation function acting on the hidden layer, and the activation function acting on the output layer. The latter varies, but is typically the softmax function to produce normalised probabilities. For natural language processing (NLP), these probabilities can, in the simplest case, be the probability that the input corresponds to characters in the alphabet.
+When passing data samples through the network, the output vector $o^{(t)}$ (that is, the output vector at time $t$), is dependent both on the data sample at time $t$ as well as the sample at time $t-1$. This time dependency is described more in detail SOME OTHER PLACE? The time dependency makes the training of vanilla RNNs hard to parallelize because samples must be processed sequentially. In addition to the transformations induced by the weights and biases, two functions are involved in the forward pass: The activation function acting on the hidden layer, and the activation function acting on the output layer. The latter varies but is typically the softmax function to produce normalized probabilities. For natural language processing (NLP), these probabilities can, in the simplest case, be the probability that the input corresponds to characters in the alphabet.
 
 After obtaining the outputs BACKPROP!
 
@@ -83,7 +100,7 @@ There are several different techniques used for word embeddings today, the most 
     \label{fig:enter-label}
 \end{figure}
 
-When using word embeddings in recurrent neural networks, it is usual to include what is called an embedding layer as the first layer of the network. The function of this layer is to train and tailor the word embeddings to better suit the specific task of the network. The reason I say tailor is because the amount of needed data and computational power to create and train word embedding set for a dictionary of any substantial size is quite large it is normal to use pre-trained word embedding datasets, and fine-tune these through the embedding layer to better suit the task of the specific network. As we were not sure as to what our task for the network would be specifically we decided a static pre-trained word embedding dataset would suffice, meaning we decided to omit the embedding layer and not train the embedding in the dataset any further to fine-tune them for our network. This will probably limit our results a bit, however, given we don't have any specific categories or themes in mind for our training data the, general word embeddings should suffice.
+When using word embeddings in recurrent neural networks, it is usual to include what is called an embedding layer as the first layer of the network. The function of this layer is to train and tailor the word embeddings to better suit the specific task of the network. The reason I say tailor is because the amount of needed data and computational power to create and train word embedding set for a dictionary of any substantial size is quite large it is normal to use pre-trained word embedding datasets and fine-tune these through the embedding layer to better suit the task of the specific network. As we were not sure as to what our task for the network would be specifically we decided a static pre-trained word embedding dataset would suffice, meaning we decided to omit the embedding layer and not train the embedding in the dataset any further to fine-tune them for our network. This will probably limit our results a bit, however, given we don't have any specific categories or themes in mind for our training data the, general word embeddings should suffice.
 To take care of the translation to and from the vector space, and find the cosine similarity between word embeddings, we are using the \cite{Spacy} python library, which also provides us with a selection of pre-trained word embedding datasets. These datasets range from the smallest containing 50-dimensional word embeddings to the biggest containing 300-dimensional ones.
 word embeddings
 
@@ -113,18 +130,18 @@ This cross-entropy function, which is a function of inputs ($\mathbf{x}$) and ou
 \end{align}
 
 Note: $\quad y^{(t)} \;\;$ is an entry in the output vector $\;\; \mathbf{\hat{y}}^{(t)}$ \par
-The cost function is the negative log-likelihood function. Minimising this function is the same as maximum the likelihood of the parameters - not due to the log, but due to the negative prefix. The log in log-likelihood works, but I dont know why it is used? \par
-Below we derive the gradients of the nodes in the computational graph from the deep learning book. These gradients must propagate backwards through time, from time $t=\tau$ down to $t=0$.
+The cost function is the negative log-likelihood function. Minimizing this function is the same as maximizing the likelihood of the parameters - not due to the log, but due to the negative prefix. The log in log-likelihood works, but I don't know why it is used. \par
+Below we derive the gradients of the nodes in the computational graph from the deep learning book. These gradients must propagate backward through time, from time $t=\tau$ down to $t=0$.
 \par
 The gradient of the cost function at the output, $\mathbf{o}$, at time \textit{t} is
 \begin{align}
     \nabla_{\mathbf{o}^{(t)}} C &= \frac{\delta C}{\delta o^{(t)}}
     = \frac{\delta C}{\delta C^{(t)}}\frac{\delta C^{(t)}}{\delta o^{(t)}}
     = \hat{y}^{(t)} - \mathbf{1}_{i=y^{(t)}}
-    % \text{i is indices in $\hat{y}^{(t)}$. The predicate at the end of the previous line makes sence if one considers for example the $\hat{y}^{(t)}$ consisting of probabilities for all the different characters.}
+    % \text{i is indices in $\hat{y}^{(t)}$. The predicate at the end of the previous line makes sense if one considers for example the $\hat{y}^{(t)}$ consisting of probabilities for all the different characters.}
 \end{align}
 
-We have found a general expression for the gradien at the $\mathbf{o}^{(t)}$-nodes. The next step is to find an expression for the gradient of the final hidden (computational) node, at time $\tau$: $\mathbf{h}^{(\tau)}$. Its only descendant is $\mathbf{o}^{(\tau)}$, which means its gradient is solely dependent on this node, which makes it a good starting point for the later gradient calculations.
+We have found a general expression for the gradient at the $\mathbf{o}^{(t)}$-nodes. The next step is to find an expression for the gradient of the final hidden (computational) node, at time $\tau$: $\mathbf{h}^{(\tau)}$. Its only descendant is $\mathbf{o}^{(\tau)}$, which means its gradient is solely dependent on this node, which makes it a good starting point for the later gradient calculations.
 
 \begin{align}
     \nabla_{\mathbf{h}^{(\tau)}} C &= \left(\nabla_{\mathbf{o}^{(\tau)}}C\right) \frac{\delta \mathbf{o}^{(\tau)}}{\delta \mathbf{h}^{(\tau)}}\\
@@ -132,7 +149,7 @@ We have found a general expression for the gradien at the $\mathbf{o}^{(t)}$-nod
     \nabla_{\mathbf{h}^{(\tau)}} C &= \mathbf{V}^{\top} \left(\nabla_{\mathbf{o}^{(\tau)}}C\right)
     % \nabla_{\mathbf{h}{(\tau)}} C &= \mathbf{V}^{\top}\left(\hat{y}^{(\tau)} - \mathbf{1}_{i=y^{(\tau)}}\right) \\
 \end{align}
-Where all the right hand side terms are known from before. \par
+Where all the right-hand side terms are known from before. \par
 
 The only nodes that need gradient computation now, are all the hidden states preceding the last. I.e., for $\mathbf{h}^{(t)}$, where $t = \{0,...,\tau-1\}$. For these time steps, the gradient is influenced by both the gradient at $\mathbf{o}^{(t)}$, as well as all the preceding hidden state gradients. Remember that the preceding hidden state of $\mathbf{h}^{(t)}$ is $\mathbf{h}^{(t+1)}$, which has preceding hidden state $\mathbf{h}^{(t+2)}$, and so on. We are calculating the gradient starting from $t=\tau-1$, working our way down to $t=0$: \par
 % \begin{align}
@@ -155,7 +172,7 @@ The only nodes that need gradient computation now, are all the hidden states pre
 Some parts of the equations above have been colored to emphasize the parts that we take with us from one gradient calculation to the next. \par
 It is observable that the gradient at time $t$ is indeed dependent on all later time steps $t + 1, t + 2, t + n$, as well as the current output. The influence from current output can be seen before the first (+), while the influence from previous states can be observed after the first (+). \par
 
-The final step is to calculate the gradient of the parameter nodes $\mathbf{U, W, b, V, c}$. To find these gradients, we must differentiate $\mathbf{h}^{(t)}$. Calculating the derivative of $\mathbf{h}^{(t)}$ involves differentiating the activation function using the chain rule. In the equations below, the chain rule is applied to differentiate the activations with respect to different parameters, but the activation function itself is not differentiated because it depends on which activation function in use. It is instead denoted as $\nabla_{activation}$.
+The final step is to calculate the gradient of the parameter nodes $\mathbf{U, W, b, V, c}$. To find these gradients, we must differentiate $\mathbf{h}^{(t)}$. Calculating the derivative of $\mathbf{h}^{(t)}$ involves differentiating the activation function using the chain rule. In the equations below, the chain rule is applied to differentiate the activations with respect to different parameters, but the activation function itself is not differentiated because it depends on which activation function is in use. It is instead denoted as $\nabla_{activation}$.
 \begin{align*}
     \nabla_\mathbf{c}C &= \sum_t \left(\nabla_{\mathbf{o}^{(t)}}C\right) \frac{\delta \mathbf{o}^{(t)}}{\delta \mathbf{c}^{(t)}} &&= \sum_t \left(\nabla_{\mathbf{o}^{(t)}}C\right) \cdot 1 \\
     \nabla_\mathbf{V}C &= \sum_t \left(\nabla_{\mathbf{o}^{(t)}}C\right) \frac{\delta \mathbf{o}^{(t)}}{\delta \mathbf{h}^{(t)}} &&= \sum_t \left(\nabla_{\mathbf{o}^{(t)}}C\right)\mathbf{h^{(t)}} \\
