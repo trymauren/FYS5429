@@ -7,8 +7,9 @@ import git
 import numpy as np
 from collections.abc import Callable
 import yaml
-from utils.activations import Relu, Tanh
+from utils.activations import Relu, Tanh, Identity, Softmax
 from utils.loss_functions import Mean_Square_Loss as mse
+from utils.loss_functions import Classification_Logloss as ce
 from utils import optimisers
 from utils.optimisers import SGD, SGD_momentum, AdaGrad
 from utils import read_load_model
@@ -35,7 +36,7 @@ class RNN:
             name: str = 'rnn',
             config: Dict | Path | str = 'default',
             seed: int = 24,
-            threshold = 5,
+            threshold: float = 5,
             ) -> None:
 
         np.random.seed(seed)
@@ -127,7 +128,8 @@ class RNN:
 
         #NOTE: Implemented gradient clipping, however shape error, 
         #      gradient norm is a list of floats, not one number
-        loss_grad = optimisers.clip_gradient(self._loss_function.grad(),self.threshold)
+        loss_grad = optimisers.clip_gradient(self._loss_function.grad(),
+                                           self.threshold)
         num_backsteps = min(len(self.hs)-1, num_backsteps)
         for t in range(num_backsteps, -1, -1):
 
@@ -193,12 +195,10 @@ class RNN:
                   self.b_hy, self.b_hh]
         deltas = [deltas_w_hy, deltas_w_hh, deltas_w_xh,
                   deltas_b_hy, deltas_b_hh]
-        #clipped_deltas = optimisers.clip_gradient([deltas_w_hy, deltas_w_hh, deltas_w_xh,
+        # clipped_deltas = optimisers.clip_gradient([deltas_w_hy, deltas_w_hh, deltas_w_xh,
         #          deltas_b_hy, deltas_b_hh], 2)
         steps = self._optimiser(deltas, self.learning_rate)
-        steps = self._optimiser(deltas, self.learning_rate)
 
-        #steps = self._optimiser(clipped_deltas, self.learning_rate)
         #steps = self._optimiser(clipped_deltas, self.learning_rate)
 
         for param, step in zip(params, steps):
@@ -317,7 +317,7 @@ _
                     else:
                         sequence_output[sample] = self.ys[-1]
 
-                    self._loss(self.ys, np.array(y_partition, dtype=float), e)
+                    self._loss(np.array(y_partition, dtype=float), self.ys, e)
 
                     self._backward()
 
