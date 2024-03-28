@@ -11,7 +11,7 @@ from utils.activations import Relu, Tanh, Identity, Softmax
 from utils.loss_functions import Mean_Square_Loss as mse
 from utils.loss_functions import Classification_Logloss as ce
 from utils import optimisers
-from utils.optimisers import SGD, SGD_momentum, AdaGrad
+from utils.optimisers import SGD, SGD_momentum, AdaGrad, RMSProp
 from utils import read_load_model
 import utils.text_processing as text_proc
 from utils.text_processing import WORD_EMBEDDING
@@ -37,6 +37,7 @@ class RNN:
             config: Dict | Path | str = 'default',
             seed: int = 24,
             threshold: float = 5,
+            **optimiser_params,
             ) -> None:
 
         np.random.seed(seed)
@@ -55,6 +56,7 @@ class RNN:
         if not optimiser:
             optimiser = AdaGrad()
         self._optimiser = eval(optimiser)
+        self.optimiser_params = optimiser_params
 
         self.regression = regression
         self.classification = classification
@@ -197,7 +199,7 @@ class RNN:
                   deltas_b_hy, deltas_b_hh]
         # clipped_deltas = optimisers.clip_gradient([deltas_w_hy, deltas_w_hh, deltas_w_xh,
         #          deltas_b_hy, deltas_b_hh], 2)
-        steps = self._optimiser(deltas, self.learning_rate)
+        steps = self._optimiser(deltas, **self.optimiser_params)
 
         #steps = self._optimiser(clipped_deltas, self.learning_rate)
 
@@ -415,6 +417,26 @@ _
     def _loss(self, y_true, y_pred, epoch):
         loss = self._loss_function(y_true, y_pred)
         self.stats['loss'][epoch] += np.mean(loss)
+
+    def plot_loss(self, plt, figax=None, savepath=None, show=False):
+        # Some config stuff
+        if figax is None:
+            fig, ax = plt.subplots()
+        else:
+            fig, ax = figax
+        ax.plot(
+                self.stats['loss'],
+                label=str(self._optimiser.__class__.__name__))
+
+        ax.legend()
+        ax.set_xlabel('Epochs')
+        ax.set_ylabel('Loss')
+        ax.set_title('Training loss')
+        if savepath:
+            plt.savefig(savepath)
+        if show:
+            plt.show()
+        return fig, ax
 
     def get_stats(self):
         return self.stats
