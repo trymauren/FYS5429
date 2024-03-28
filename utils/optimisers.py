@@ -8,23 +8,19 @@ sys.path.append(path_to_root)
 
 class Optimiser():
 
-    def __init__(
-            self,
-            ):
+    def __init__(self):
         pass
 
-    def __call__(self, params, learning_rate=None):
-        return self.step(params, learning_rate)
+    def __call__(self, params, **kwargs):
+        return self.step(params, **kwargs)
 
 
 class SGD(Optimiser):
 
-    def __init__(
-            self,
-            ):
+    def __init__(self):
         super().__init__()
 
-    def step(self, params, learning_rate):
+    def step(self, params, learning_rate=0.001):
         self.learning_rate = learning_rate
         self.update = [0]*len(params)
         for idx, param in enumerate(params):
@@ -34,17 +30,13 @@ class SGD(Optimiser):
 
 class SGD_momentum(Optimiser):
 
-    def __init__(
-            self,
-            momentum_rate: float = 0.001,
-            ):
-
+    def __init__(self):
         super().__init__()
-        self.momentum_rate = momentum_rate
         self.update = None
 
-    def step(self, params, learning_rate):
+    def step(self, params, learning_rate=0.001, momentum_rate=0.9):
         self.learning_rate = learning_rate
+        self.momentum_rate = momentum_rate
         if self.update is None:
             self.update = [0]*len(params)
 
@@ -57,17 +49,13 @@ class SGD_momentum(Optimiser):
 
 class AdaGrad(Optimiser):
 
-    def __init__(
-            self,
-            epsilon=1e-15,
-            ):
-
+    def __init__(self):
         super().__init__()
-        self.epsilon = epsilon
+        self.lambda_ = 1e-7
         self.alphas = None
         self.update = None
 
-    def step(self, params, learning_rate):
+    def step(self, params, learning_rate=0.001):
         self.learning_rate = learning_rate
         if self.alphas is None:
             self.alphas = [0]*len(params)
@@ -75,9 +63,35 @@ class AdaGrad(Optimiser):
 
         for idx, param in enumerate(params):
             self.alphas[idx] += np.square(param)
-            coef = np.sqrt(self.alphas[idx] + self.epsilon)
-            adagrad = param / coef
+            adagrad = param / (np.sqrt(self.lambda_ + self.alphas[idx]))
             self.update[idx] = self.learning_rate * adagrad
+
+        return self.update
+
+
+class RMSProp(Optimiser):
+
+    def __init__(self):
+        super().__init__()
+        self.lambda_ = 1e-6
+        self.update = None
+        self.alphas = None
+
+    def step(self, params, learning_rate=0.001, decay_rate=0.001):
+        self.learning_rate = learning_rate
+        self.decay_rate = decay_rate
+        if self.alphas is None:
+            self.alphas = [0]*len(params)
+            self.update = [0]*len(params)
+
+        for idx, param in enumerate(params):
+            self.alphas[idx] += (
+                                 self.decay_rate * param
+                                 + (1 - decay_rate)
+                                 * np.square(param)
+                                )
+            rmsprop = param / np.sqrt(self.lambda_ + self.alphas[idx])
+            self.update[idx] = self.learning_rate * rmsprop
 
         return self.update
 
