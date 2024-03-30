@@ -23,12 +23,13 @@ plt.rc('figure', titlesize=BIGGER_SIZE)
 word_emb = WORD_EMBEDDING()
 
 sequence_length = 7
-print(text_proc.read_file("utils/three_little_pigs.txt", seq_length=sequence_length))
 
-X = np.array([word_emb.get_embeddings(str(s)) for s in text_proc.read_file("utils/three_little_pigs.txt", seq_length=sequence_length)], dtype=object)
+text_data = text_proc.read_file("utils/embedding_test.txt")
+print(text_data)
+X,y = np.array(word_emb.translate_and_shift(text_data))
 print(X.shape)
-print("X shape " + str(X.shape))
-y = np.array([word_emb.get_embeddings(str(s)) for s in text_proc.read_file("utils/three_little_pigs.txt",seq_length=sequence_length)], dtype=object)
+print(y.shape)
+
 
 X_seed = word_emb.get_embeddings("The")[0]
 print(X_seed.shape)

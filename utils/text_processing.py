@@ -2,7 +2,7 @@ import numpy as np
 import spacy
 
 
-def read_file(filename : str, seq_length : int, shift : bool = False) -> np.ndarray:
+def read_file(filename : str) -> np.ndarray:
     """
     Parses the given file into a numpy array containing one long string
     up to 100 000 charcters long, the max length is set to be within
@@ -25,48 +25,8 @@ def read_file(filename : str, seq_length : int, shift : bool = False) -> np.ndar
         if len_chars > 100000:
             raise ValueError("Text file can't contain more than 100 000\
                              characters!")
-        text_split = text.split()
-        if shift:
-            for i in range(1,len(text_split),seq_length):
-                if i+seq_length >= len(text_split):
-                    windowed_text.append(text_split[i:])
-                else:
-                    windowed_text.append(text_split[i:i+seq_length])
-        else:
-            for i in range(0,len(text_split),seq_length):
-                if i+seq_length >= len(text_split):
-                    windowed_text.append(text_split[i:-1])
-                else:
-                    windowed_text.append(text_split[i:i+seq_length])
-    return np.array(windowed_text, dtype=object)
-
-def read_sentence(filename : str) -> np.ndarray:
-    """
-    Alternative to read_file(), parses the given file into a numpy array
-    containing all the sentences in the file as an entry in the array,
-    in this case there are no max limits beyond pythons capabilities to
-    the length of the passed file as each sentence in the file will be
-    translated to tokenized embedding vectors separately.
-
-    Parameters:
-    --------------------------------
-    filename : str
-    - The name of the text file to be parsed as a string
-
-    Returns:
-    --------------------------------
-    numpy.ndarray
-    - All sentences in the passed text file as a separate string entry 
-      in the array. The text is split into sentences in the whitespace 
-      following any "!", "?" or "."
-    """
-    text = ""
-    with open(filename,"r") as f:
-        text = f.read()
-        #TODO: this split is defo not correct lol, have to change to 
-        #split in the whitespace right after !,? or .
-        text = text.split(r"(?<!\w\.\w.)(?<![A-Z]\.)(?<![A-Z][a-z]\.)(?<=\.|\?)")
-    return np.array(text)
+    print(text)
+    return text
 
 
 
@@ -137,6 +97,30 @@ class WORD_EMBEDDING():
             nearest_words.append(self.nlp.vocab.strings[key])
         return np.array(nearest_words)
     
+    def translate_and_shift(self, data: str):
+        """
+        Translate text data from string into 2 embedding data sets, the
+        first ranging from 0->(N-1), and the second acting as a validation set,
+        ranging from 1 -> N
+        
+        Parameters:
+        ---------------------------
+            data : str
+            - text data as a string up to 100 000 characters in length
+
+        Returns:
+        ---------------------------
+            x : np.ndarray
+            - text data translated into embeddings, covers 0->(len(X)-1) of X
+
+            y : np.ndarray
+            - text data translated into embeddings, covers 1->len(X) of X, acts
+              as validation set for x
+        """
+        word_embs = self.get_embeddings(data)
+        x = word_embs[0:-1]
+        y = word_embs[1:]
+        return x,y
 if __name__ == "__main__":
     res = read_file("embedding_test.txt", 5)
     print(res)
