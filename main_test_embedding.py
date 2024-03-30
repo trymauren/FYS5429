@@ -43,19 +43,23 @@ rnn = RNN(
     hidden_activation='Tanh()',
     output_activation='Identity()',
     loss_function='mse()',
-    optimiser='RMSProp()',
+    optimiser='AdaGrad()',
     regression=True,
     threshold=1,
     )
-whole_sequence_output, hidden_state = rnn.fit(
+
+hidden_state = rnn.fit(
     X, y, epo,
     num_hidden_nodes=hidden_nodes, return_sequences=True,
-    independent_samples=False, learning_rate=0.005,
-    decay_rate=0.001)
+    independent_samples=False, learning_rate=0.005)
 rnn.plot_loss(plt, show=True)
-predict = rnn.predict(X_seed, time_steps_to_generate=5)
+predict = rnn.predict(X[:3], time_steps_to_generate=2)
+
+# with open("child_book_1_dump.pkl", "wb") as f:
+#     pickle.dump(predict, f)
+
 for emb in predict:
-    print(word_emb.find_closest(emb,1))
+    print(word_emb.find_closest(emb, 1))
 
 
 
