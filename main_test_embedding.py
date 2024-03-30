@@ -28,7 +28,7 @@ print(text_proc.read_file("utils/three_little_pigs.txt", seq_length=sequence_len
 X = np.array([word_emb.get_embeddings(str(s)) for s in text_proc.read_file("utils/three_little_pigs.txt", seq_length=sequence_length)], dtype=object)
 print(X.shape)
 print("X shape " + str(X.shape))
-y = np.array([word_emb.get_embeddings(str(s)) for s in text_proc.read_file("utils/three_little_pigs.txt",seq_length=sequence_length, shift=True )], dtype=object)
+y = np.array([word_emb.get_embeddings(str(s)) for s in text_proc.read_file("utils/three_little_pigs.txt",seq_length=sequence_length)], dtype=object)
 
 X_seed = word_emb.get_embeddings("The")[0]
 print(X_seed.shape)
