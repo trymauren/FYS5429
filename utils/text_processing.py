@@ -35,7 +35,7 @@ def read_file(filename : str, seq_length : int, shift : bool = False) -> np.ndar
         else:
             for i in range(0,len(text_split),seq_length):
                 if i+seq_length >= len(text_split):
-                    windowed_text.append(text_split[i:])
+                    windowed_text.append(text_split[i:-1])
                 else:
                     windowed_text.append(text_split[i:i+seq_length])
     return np.array(windowed_text, dtype=object)
