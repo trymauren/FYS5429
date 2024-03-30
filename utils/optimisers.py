@@ -65,7 +65,6 @@ class AdaGrad(Optimiser):
             self.alphas[idx] += np.square(param)
             adagrad = param / (np.sqrt(self.lambda_ + self.alphas[idx]))
             self.update[idx] = self.learning_rate * adagrad
-
         return self.update
 
 
@@ -92,7 +91,6 @@ class RMSProp(Optimiser):
                                 )
             rmsprop = param / np.sqrt(self.lambda_ + self.alphas[idx])
             self.update[idx] = self.learning_rate * rmsprop
-
         return self.update
 
 

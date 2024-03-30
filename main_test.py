@@ -14,12 +14,12 @@ def create_sines(examples=10, seq_length=100):
     X = []
     y = []
     for _ in range(examples):
-        noise_x = np.array([np.random.normal(0, 1, seq_length)])
+        #noise_x = np.array([np.random.normal(0, 1, seq_length)])
         example_x = np.array([np.sin(np.linspace(0, 8 * np.pi, seq_length))])
-        example_w_noise_x = (example_x + noise_x).T
+        #example_w_noise_x = (example_x + noise_x).T
         # example_w_noise_y = (example_x + noise_x).T
         # X.append(example_w_noise_x)
-        X.append(example_x.T)
+        X.append(example_x[0:-1].T)
         # example_x[0][0] = 0
         # example_x[0][1] = 0
         # example_x[0][2] = 0
@@ -28,14 +28,14 @@ def create_sines(examples=10, seq_length=100):
         # example_x[0][5] = 0
         # example_x[0][6] = 0
         # example_x[0][7] = 0
-        y.append(example_x.T)
+        y.append(example_x[1:].T)
         # y.append(example_w_noise_y)
     return X, y
 
 
 seq_length = 20
 examples = 50
-epo = 10000
+epo = 2
 hidden_nodes = 50
 rnn = RNN(
     hidden_activation='Tanh()',
@@ -50,10 +50,9 @@ whole_sequence_output, hidden_state = rnn.fit(
     X, y, epo, learning_rate=0.0001, num_hidden_states=seq_length,
     num_hidden_nodes=hidden_nodes, return_sequences=True)
 
-plt.plot(rnn.get_stats()['loss'])
-plt.show()
-x_seed = np.array([1])
+x_seed = X_val
 ret = rnn.predict(x_seed, hidden_state, 4)
+print(ret)
 plt.plot(ret)
 plt.show()
 # X, y = create_sines(examples=examples, seq_length=50)
