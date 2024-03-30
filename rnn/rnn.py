@@ -37,7 +37,7 @@ class RNN:
             config: Dict | Path | str = 'default',
             seed: int = 24,
             threshold: float = 5,
-            
+            **optimiser_params,
             ) -> None:
 
         np.random.seed(seed)
@@ -56,6 +56,7 @@ class RNN:
         if not optimiser:
             optimiser = AdaGrad()
         self._optimiser = eval(optimiser)
+        self.optimiser_params = optimiser_params
 
         self.regression = regression
         self.classification = classification
@@ -82,7 +83,7 @@ class RNN:
 
     def _forward(
             self,
-            X_partition,
+            x_sample,
             generate=False,
             ) -> None:
         """
@@ -91,8 +92,8 @@ class RNN:
 
         Parameters:
         -------------------------------
-        X_partition:
-            - A partition of samples
+        x_sample:
+            - A sample of vectors
 
         generate:
             - Whether to insert output at time t=1 as input at time t=2
@@ -102,7 +103,7 @@ class RNN:
         None
         """
         for t in range(self.num_hidden_states):
-            x_weighted = self.w_xh @ X_partition[t]
+            x_weighted = self.w_xh @ x_sample[t]
             h_weighted = self.w_hh @ self.hs[t-1]
             a = self.b_hh + x_weighted + h_weighted
             self.xs[t] = a
@@ -112,7 +113,7 @@ class RNN:
             self.ys[t] = self._output_activation(o)
             if generate:
                 if t < self.num_hidden_states - 1:
-                    X_partition[t+1] = self.ys[t]
+                    x_sample[t+1] = self.ys[t]
 
         return self.ys
 
@@ -209,12 +210,11 @@ class RNN:
             X: np.ndarray = None,
             y: np.ndarray = None,
             epochs: int = None,
-            num_hidden_states: int = None,
+            learning_rate: float = 0.01,
             num_hidden_nodes: int = 5,
             num_backsteps: int = None,
             return_sequences: bool = False,
             independent_samples: bool = True,
-            **optimiser_params,
             ) -> np.ndarray:
         """
         Method for training the RNN, iteratively runs _forward(), and
@@ -241,9 +241,6 @@ _
                                      in X)
 
         learning_rate: float,
-
-        num_hidden_states : int
-            - Number of times to unroll the rnn architecture
 
         num_hidden_nodes : int
             - Number of fully connected hidden nodes to add
@@ -272,75 +269,52 @@ _
         X = np.array(X, dtype=object)  # object to allow inhomogeneous shape
         y = np.array(y, dtype=object)  # object to allow inhomogeneous shape
 
-        samples = len(X)
-        num_features = len(X[0][0])
+        samples, time_steps, num_features = X.shape
+        samples, time_steps_y, output_size = y.shape
 
-        samples = len(y)
-        output_size = len(y[0][0])
-
+        self.learning_rate = learning_rate
         self.output_size = output_size
         self.num_features = num_features
         self.num_hidden_nodes = num_hidden_nodes
-
-        self.optimiser_params = optimiser_params
 
         self._init_weights()
 
         self.stats['loss'] = [0]*epochs
 
-        # if return_sequences:
-        #     sequence_output = np.zeros((samples, time_steps, output_size))
-        # else:
-        #     sequence_output = np.zeros((samples, output_size))
-        sequence_output = None
         for e in tqdm(range(epochs)):
 
-            for sample in range(samples):
+            for sample_x, sample_y in zip(X, y):
+                self.num_hidden_states = len(sample_x)
 
                 if independent_samples:
-                    if self.built:
-                        self.hs[-1] = 0
-
-                # Potential mini-batch splitting
-                time_steps = len(X[sample])
-                if num_hidden_states is None:
-                    self.num_hidden_states = time_steps
-                else:
-                    self.num_hidden_states = num_hidden_states
-                partitions = np.floor(time_steps/self.num_hidden_states)
-                x_sample_split = np.array_split(X[sample], partitions, axis=0)
-                y_sample_split = np.array_split(y[sample], partitions, axis=0)
-
-                for x_sample, y_sample in zip(x_sample_split, y_sample_split):
-
-                    self.num_hidden_states = len(x_sample)
                     self._init_states()
+                else:
+                    prev_h = None
+                    if self.hs is not None:
+                        prev_h = self.hs[-1]
+                    self._init_states()
+                    if prev_h is not None:
+                        self.hs[-1] = prev_h
 
-                    y_pred = self._forward(
-                        np.array(x_sample, dtype=float),
-                        generate=False
-                    )
+                y_pred = self._forward(
+                    np.array(sample_x, dtype=float),
+                    generate=False
+                )
 
-                    # NEEDS FIX!
-                    # if return_sequences:
-                    #     sequence_output[sample] = self.ys
-                    # else:
-                    #     sequence_output[sample] = self.ys[-1]
-                    self._loss(np.array(y_sample, dtype=float), self.ys, e)
+                self._loss(np.array(sample_y, dtype=float), self.ys, e)
 
-                    self._backward()
+                self._backward()
 
         read_load_model.save_model(  # pickle dump the trained estimator
             self,
             'saved_models/',
             self.name
         )
-        return sequence_output, self.hs[-1]
+        return self.hs[-1]
 
     def predict(
             self,
-            x_seed: np.ndarray,
-            h_seed: np.ndarray = None,
+            X: np.ndarray,
             time_steps_to_generate: int = 1,
             ) -> np.ndarray:
         """
@@ -361,15 +335,20 @@ _
         - Generated next samples
 
         """
-        if h_seed is None:
-            self.hs[-1] = np.zeros_like(self.hs[-1])
-        else:
-            self.hs[-1] = h_seed
+        # if h_seed is None:
+        #     self.hs[-1] = np.zeros_like(self.hs[-1])
+        # else:
+        #     self.hs[-1] = h_seed
         self.num_hidden_states = time_steps_to_generate
         self._init_states()
-        X = np.zeros((time_steps_to_generate, len(x_seed)))
-        X[0] = x_seed
-        self._forward(X, generate=True)
+        # X = np.zeros((time_steps_to_generate, len(x_seed)))
+        # X[0] = x_seed
+        vec_length = len(X[0][0])
+        X_gen = np.zeros((time_steps_to_generate, vec_length))
+        X_gen[0] = X[-1][0]
+        for x in X:
+            self._forward(np.array(x, dtype=float))
+        self._forward(np.array(X_gen, dtype=float), generate=True)
         return self.ys
 
     def _init_weights(
@@ -414,14 +393,14 @@ _
         None
         """
 
-        if self.built:
-            prev_h = self.hs[-1]
+        # if self.built:
+        #     prev_h = self.hs[-1]
         self.hs = np.zeros((self.num_hidden_states, self.num_hidden_nodes))
-        if self.built:
-            self.hs[-1] = prev_h
+        # if self.built:
+        #     self.hs[-1] = prev_h
         self.xs = np.zeros((self.num_hidden_states, self.num_hidden_nodes))
         self.ys = np.zeros((self.num_hidden_states, self.output_size))
-        self.built = True
+        # self.built = True
 
     def _loss(self, y_true, y_pred, epoch):
         loss = self._loss_function(y_true, y_pred)
@@ -440,7 +419,7 @@ _
         ax.legend()
         ax.set_xlabel('Epochs')
         ax.set_ylabel('Loss')
-        ax.set_title(f'Training loss w/learning rate = {self._optimiser.learning_rate}')
+        ax.set_title('Training loss')
         if savepath:
             plt.savefig(savepath)
         if show:
