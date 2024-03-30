@@ -359,7 +359,6 @@ _
         -------------------------------
         np.ndarray
         - Generated next samples
-
         """
         if h_seed is None:
             self.hs[-1] = np.zeros_like(self.hs[-1])
