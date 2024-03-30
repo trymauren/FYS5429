@@ -37,7 +37,7 @@ class RNN:
             config: Dict | Path | str = 'default',
             seed: int = 24,
             threshold: float = 5,
-            **optimiser_params,
+            
             ) -> None:
 
         np.random.seed(seed)
@@ -56,7 +56,6 @@ class RNN:
         if not optimiser:
             optimiser = AdaGrad()
         self._optimiser = eval(optimiser)
-        self.optimiser_params = optimiser_params
 
         self.regression = regression
         self.classification = classification
@@ -210,12 +209,12 @@ class RNN:
             X: np.ndarray = None,
             y: np.ndarray = None,
             epochs: int = None,
-            learning_rate: float = 0.01,
             num_hidden_states: int = None,
             num_hidden_nodes: int = 5,
             num_backsteps: int = None,
             return_sequences: bool = False,
             independent_samples: bool = True,
+            **optimiser_params,
             ) -> np.ndarray:
         """
         Method for training the RNN, iteratively runs _forward(), and
@@ -276,10 +275,12 @@ _
         samples, time_steps, num_features = X.shape
         samples, time_steps_y, output_size = y.shape
 
-        self.learning_rate = learning_rate
+        #self.learning_rate = learning_rate
         self.output_size = output_size
         self.num_features = num_features
         self.num_hidden_nodes = num_hidden_nodes
+                
+        self.optimiser_params = optimiser_params
 
         if num_hidden_states is None:
             self.num_hidden_states = time_steps
@@ -359,7 +360,7 @@ _
 
         """
         if h_seed is None:
-            self.hs[-1] = np.zeros_like(hs[-1])
+            self.hs[-1] = np.zeros_like(self.hs[-1])
         else:
             self.hs[-1] = h_seed
         self.num_hidden_states = time_steps_to_generate
@@ -437,7 +438,7 @@ _
         ax.legend()
         ax.set_xlabel('Epochs')
         ax.set_ylabel('Loss')
-        ax.set_title('Training loss')
+        ax.set_title(f'Training loss w/learning rate = {self._optimiser.learning_rate}')
         if savepath:
             plt.savefig(savepath)
         if show:
