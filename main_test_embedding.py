@@ -22,18 +22,14 @@ plt.rc('figure', titlesize=BIGGER_SIZE)
 
 word_emb = WORD_EMBEDDING()
 
-#sequence_length = 7
+text_data = text_proc.read_file("utils/three_little_pigs.txt")
 
-text_data = text_proc.read_file("utils/embedding_test.txt")
-print(text_data)
 X,y = np.array(word_emb.translate_and_shift(text_data))
 
 X = np.array([X])
 y = np.array([y])
 
-X_seed = np.array([word_emb.get_embeddings("There was a")])
-print(X_seed.shape)
-
+X_seed = np.array([word_emb.get_embeddings("little")])
 
 epo = 300
 hidden_nodes = 300
@@ -54,7 +50,7 @@ hidden_state = rnn.fit(
     independent_samples=False, learning_rate=0.005)
 rnn.plot_loss(plt, show=True)
 
-predict = rnn.predict(X_seed, time_steps_to_generate=7)
+predict = rnn.predict(X_seed, time_steps_to_generate=3)
 
 # with open("child_book_1_dump.pkl", "wb") as f:
 #     pickle.dump(predict, f)
