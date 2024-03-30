@@ -22,19 +22,23 @@ def read_file(filename : str, seq_length : int, shift : bool = False) -> np.ndar
     with open(filename, 'r') as f:
         text = f.read()
         len_chars = sum(len(word) for word in text.strip().split())
-        print(len_chars)
         if len_chars > 100000:
             raise ValueError("Text file can't contain more than 100 000\
                              characters!")
         text_split = text.split()
-        print(text_split)
         if shift:
-            for i in range(1,len(text_split)-seq_length,seq_length):
-                windowed_text.append(text_split[i:i+seq_length])
+            for i in range(1,len(text_split),seq_length):
+                if i+seq_length >= len(text_split):
+                    windowed_text.append(text_split[i:])
+                else:
+                    windowed_text.append(text_split[i:i+seq_length])
         else:
-            for i in range(0,len(text_split)-seq_length,seq_length):
-                windowed_text.append(text_split[i:i+seq_length])
-    return np.array(windowed_text)
+            for i in range(0,len(text_split),seq_length):
+                if i+seq_length >= len(text_split):
+                    windowed_text.append(text_split[i:])
+                else:
+                    windowed_text.append(text_split[i:i+seq_length])
+    return np.array(windowed_text, dtype=object)
 
 def read_sentence(filename : str) -> np.ndarray:
     """
