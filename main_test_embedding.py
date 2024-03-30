@@ -18,7 +18,6 @@ plt.rc('xtick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
 plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
 plt.rc('legend', fontsize=MEDIUM_SIZE)    # legend fontsize
 plt.rc('figure', titlesize=BIGGER_SIZE)
-fig, ax = plt.subplots()
 
 
 word_emb = WORD_EMBEDDING()
@@ -27,78 +26,84 @@ X = np.array([word_emb.get_embeddings(str(s)) for s in text_proc.read_sentence("
 print("X shape " + str(X.shape))
 y = np.array([word_emb.get_embeddings(str(s)) for s in text_proc.read_sentence("utils/embedding_test_y.txt")])
 
+X_seed = word_emb.get_embeddings("There")
+h_seed = 0
+
 
 epo = 100
 hidden_nodes = 300
-rnn = RNN(
-    hidden_activation='Tanh()',
-    output_activation='Identity()',
-    loss_function='mse()',
-    optimiser='AdaGrad()',
-    regression=True,
-    threshold=1,
-    learning_rate=0.005,
-    )
+learning_rates = [0.001, 0.003, 0.005, 0.01]
+for learning_rate_curr in learning_rates:
+    fig, ax = plt.subplots()
+    print(f'learning rate: {learning_rate_curr}')
+    rnn = RNN(
+        hidden_activation='Tanh()',
+        output_activation='Identity()',
+        loss_function='mse()',
+        optimiser='AdaGrad()',
+        regression=True,
+        threshold=1,
+        )
 
-whole_sequence_output, hidden_state = rnn.fit(
-    X, y, epo,
-    num_hidden_nodes=hidden_nodes, return_sequences=True,
-    independent_samples=True)
+    whole_sequence_output, hidden_state = rnn.fit(
+        X, y, epo,
+        num_hidden_nodes=hidden_nodes, return_sequences=True,
+        independent_samples=True, learning_rate=learning_rate_curr)
 
-rnn.plot_loss(plt, figax=(fig, ax), show=False)
+    rnn.plot_loss(plt, figax=(fig, ax), show=False)
 
-rnn = RNN(
-    hidden_activation='Tanh()',
-    output_activation='Identity()',
-    loss_function='mse()',
-    optimiser='SGD()',
-    regression=True,
-    threshold=1,
-    learning_rate=0.005,
-    )
+    predict = rnn.predict()
 
-whole_sequence_output, hidden_state = rnn.fit(
-    X, y, epo,
-    num_hidden_nodes=hidden_nodes, return_sequences=True,
-    independent_samples=True)
+    rnn = RNN(
+        hidden_activation='Tanh()',
+        output_activation='Identity()',
+        loss_function='mse()',
+        optimiser='SGD()',
+        regression=True,
+        threshold=1,
+        )
 
-rnn.plot_loss(plt, figax=(fig, ax), show=False)
+    whole_sequence_output, hidden_state = rnn.fit(
+        X, y, epo,
+        num_hidden_nodes=hidden_nodes, return_sequences=True,
+        independent_samples=True, learning_rate=learning_rate_curr
+        )
 
-rnn = RNN(
-    hidden_activation='Tanh()',
-    output_activation='Identity()',
-    loss_function='mse()',
-    optimiser='SGD_momentum()',
-    regression=True,
-    threshold=1,
-    learning_rate=0.005,
-    momentum_rate=0.9,
-    )
+    rnn.plot_loss(plt, figax=(fig, ax), show=False)
 
-whole_sequence_output, hidden_state = rnn.fit(
-    X, y, epo,
-    num_hidden_nodes=hidden_nodes, return_sequences=True,
-    independent_samples=True)
+    rnn = RNN(
+        hidden_activation='Tanh()',
+        output_activation='Identity()',
+        loss_function='mse()',
+        optimiser='SGD_momentum()',
+        regression=True,
+        threshold=1,
+        )
 
-rnn.plot_loss(plt, figax=(fig, ax), show=False)
+    whole_sequence_output, hidden_state = rnn.fit(
+        X, y, epo,
+        num_hidden_nodes=hidden_nodes, return_sequences=True,
+        independent_samples=True, learning_rate=learning_rate_curr,
+        momentum_rate=0.9)
 
-rnn = RNN(
-    hidden_activation='Tanh()',
-    output_activation='Identity()',
-    loss_function='mse()',
-    optimiser='RMSProp()',
-    regression=True,
-    threshold=1,
-    learning_rate=0.005,
-    decay_rate=0.001,
-    )
+    rnn.plot_loss(plt, figax=(fig, ax), show=False)
 
-whole_sequence_output, hidden_state = rnn.fit(
-    X, y, epo,
-    num_hidden_nodes=hidden_nodes, return_sequences=True,
-    independent_samples=True)
+    rnn = RNN(
+        hidden_activation='Tanh()',
+        output_activation='Identity()',
+        loss_function='mse()',
+        optimiser='RMSProp()',
+        regression=True,
+        threshold=1,
+        )
 
-rnn.plot_loss(plt, figax=(fig, ax), show=True)
+    whole_sequence_output, hidden_state = rnn.fit(
+        X, y, epo,
+        num_hidden_nodes=hidden_nodes, return_sequences=True,
+        independent_samples=True, learning_rate=learning_rate_curr,
+        decay_rate=0.001)
+
+    rnn.plot_loss(plt, figax=(fig, ax), show=True)
 # plt.plot(rnn.get_stats()['loss'])
 # plt.show()
 # x_seed = X[0][0]
