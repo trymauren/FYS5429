@@ -104,12 +104,12 @@ class RNN:
         for t in range(self.num_hidden_states):
             x_weighted = self.w_xh @ X_partition[t]
             h_weighted = self.w_hh @ self.hs[t-1]
-            z = x_weighted + h_weighted
-            self.xs[t] = z
-            h_t = self._hidden_activation(z)
-            self.hs[t] = h_t
-            self.ys[t] = self._output_activation(self.w_hy @ self.hs[t])
-
+            a = self.b_hh + x_weighted + h_weighted
+            self.xs[t] = a
+            h = self._hidden_activation(a)
+            self.hs[t] = h
+            o = self.b_hy + self.w_hy @ self.hs[t]
+            self.ys[t] = self._output_activation(o)
             if generate:
                 if t < self.num_hidden_states - 1:
                     X_partition[t+1] = self.ys[t]
@@ -182,7 +182,7 @@ class RNN:
             deltas_w_hy += self.hs[t].T * grad_o_Cost_t  # 10.24 in DLB
             deltas_w_hh += d_act @ self.hs[t-1] * grad_h_Cost  # 10.26 in DLB
             deltas_w_xh += d_act @ self.xs[t] * grad_h_Cost  # 10.28 in DLB
-            deltas_b_hy += grad_o_Cost_t * 1  # 10.22 in DLB
+            deltas_b_hy += grad_o_Cost_t.T * 1  # 10.22 in DLB
             deltas_b_hh += d_act @ grad_h_Cost  # 10.22 in DLB
 
             """Pass on the bits of the chain rule to the calculation of
@@ -355,8 +355,10 @@ _
         - Generated next samples
 
         """
-
-        self.hs[-1] = h_seed
+        if h_seed is None:
+            self.hs[-1] = np.zeros_like(hs[-1])
+        else:
+            self.hs[-1] = h_seed
         self.num_hidden_states = time_steps_to_generate
         self._init_states()
         X = np.zeros((time_steps_to_generate, len(x_seed)))
@@ -390,9 +392,9 @@ _
             self.output_size, self.num_hidden_nodes) * scale
 
         self.b_hh = np.random.randn(
-            self.num_hidden_nodes, self.num_hidden_nodes) * scale
+            1, self.num_hidden_nodes) * scale
         self.b_hy = np.random.randn(
-            self.output_size, self.num_hidden_nodes) * scale
+            1, self.output_size) * scale
 
     def _init_states(self) -> None:
         """
