@@ -266,11 +266,16 @@ _
 
         """
 
+        if X.ndim != 3:
+            raise ValueError("Input data for X has to be of 3 dimensions:\
+                             Samples x time steps x features")
+        if y.ndim != 3:
+            raise ValueError("Input data for y has to be of 3 dimensions:\
+                             Samples x time steps x features")
+        print("Please wait, training model:")
         X = np.array(X, dtype=object)  # object to allow inhomogeneous shape
         y = np.array(y, dtype=object)  # object to allow inhomogeneous shape
 
-        print("ÆÆÆÆÆH")
-        print(X.shape)
         samples, time_steps, num_features = X.shape
         samples, time_steps_y, output_size = y.shape
 
@@ -311,6 +316,7 @@ _
             'saved_models/',
             self.name
         )
+        print("Training complete, proceed")
         return self.hs[-1]
 
     def predict(
@@ -339,6 +345,10 @@ _
         #     self.hs[-1] = np.zeros_like(self.hs[-1])
         # else:
         #     self.hs[-1] = h_seed
+        if X.ndim != 3:
+            raise ValueError("Input data for X has to be of 3 dimensions:\
+                             Samples x time steps x features")
+
         self.num_hidden_states = time_steps_to_generate
         self._init_states()
         # X = np.zeros((time_steps_to_generate, len(x_seed)))

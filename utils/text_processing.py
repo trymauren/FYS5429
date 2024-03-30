@@ -25,7 +25,6 @@ def read_file(filename : str) -> np.ndarray:
         if len_chars > 100000:
             raise ValueError("Text file can't contain more than 100 000\
                              characters!")
-    print(text)
     return text
 
 
@@ -121,6 +120,8 @@ class WORD_EMBEDDING():
         x = word_embs[0:-1]
         y = word_embs[1:]
         return x,y
+
+
 if __name__ == "__main__":
     res = read_file("embedding_test.txt", 5)
     print(res)
