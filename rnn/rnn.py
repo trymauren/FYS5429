@@ -287,7 +287,6 @@ _
             self.num_hidden_states = num_hidden_states
 
         self._init_weights()
-        self._init_states()
 
         partitions = np.floor(time_steps/self.num_hidden_states)
         self.stats['loss'] = [0]*epochs
@@ -302,24 +301,29 @@ _
             for sample in range(samples):
 
                 if independent_samples:
-                    self.hs[-1] = 0
+                    if self.built:
+                        self.hs[-1] = 0
 
-                X_split = np.split(X[sample], partitions, axis=0)
-                y_split = np.split(y[sample], partitions, axis=0)
+                # Mini-batch splitting
+                x_sample_split = np.split(X[sample], partitions, axis=0)
+                y_sample_split = np.split(y[sample], partitions, axis=0)
 
-                for X_partition, y_partition in zip(X_split, y_split):
+                for x_sample, y_sample in zip(x_sample_split, y_sample_split):
+
+                    self.num_hidden_states = len(x_sample)
+                    self._init_states()
 
                     y_pred = self._forward(
-                        np.array(X_partition, dtype=float),
+                        np.array(x_sample, dtype=float),
                         generate=False
                     )
 
-                    if return_sequences:
-                        sequence_output[sample] = self.ys
-                    else:
-                        sequence_output[sample] = self.ys[-1]
-
-                    self._loss(np.array(y_partition, dtype=float), self.ys, e)
+                    # NEEDS FIX!
+                    # if return_sequences:
+                    #     sequence_output[sample] = self.ys
+                    # else:
+                    #     sequence_output[sample] = self.ys[-1]
+                    self._loss(np.array(y_sample, dtype=float), self.ys, e)
 
                     self._backward()
 
