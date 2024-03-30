@@ -356,7 +356,7 @@ _
 
         """
         if h_seed is None:
-            self.hs[-1] = np.zeros_like(hs[-1])
+            self.hs[-1] = np.zeros_like(self.hs[-1])
         else:
             self.hs[-1] = h_seed
         self.num_hidden_states = time_steps_to_generate

@@ -21,89 +21,130 @@ plt.rc('figure', titlesize=BIGGER_SIZE)
 
 
 word_emb = WORD_EMBEDDING()
-X = np.array([word_emb.get_embeddings(str(s)) for s in text_proc.read_sentence("utils/embedding_test.txt")])
 
+sequence_length = 7
+print(text_proc.read_file("utils/three_little_pigs.txt", seq_length=sequence_length))
+
+X = np.array([word_emb.get_embeddings(str(s)) for s in text_proc.read_file("utils/three_little_pigs.txt", seq_length=sequence_length)], dtype=object)
+print(X.shape)
 print("X shape " + str(X.shape))
-y = np.array([word_emb.get_embeddings(str(s)) for s in text_proc.read_sentence("utils/embedding_test_y.txt")])
+y = np.array([word_emb.get_embeddings(str(s)) for s in text_proc.read_file("utils/three_little_pigs.txt",seq_length=sequence_length, shift=True )], dtype=object)
 
-X_seed = word_emb.get_embeddings("There")
-h_seed = 0
+X_seed = word_emb.get_embeddings("The")[0]
+print(X_seed.shape)
 
 
-epo = 100
+epo = 1000
 hidden_nodes = 300
 learning_rates = [0.001, 0.003, 0.005, 0.01]
-for learning_rate_curr in learning_rates:
-    fig, ax = plt.subplots()
-    print(f'learning rate: {learning_rate_curr}')
-    rnn = RNN(
-        hidden_activation='Tanh()',
-        output_activation='Identity()',
-        loss_function='mse()',
-        optimiser='AdaGrad()',
-        regression=True,
-        threshold=1,
-        )
 
-    whole_sequence_output, hidden_state = rnn.fit(
-        X, y, epo,
-        num_hidden_nodes=hidden_nodes, return_sequences=True,
-        independent_samples=True, learning_rate=learning_rate_curr)
+rnn = RNN(
+    hidden_activation='Tanh()',
+    output_activation='Identity()',
+    loss_function='mse()',
+    optimiser='RMSProp()',
+    regression=True,
+    threshold=1,
+    )
+whole_sequence_output, hidden_state = rnn.fit(
+    X, y, epo,
+    num_hidden_nodes=hidden_nodes, return_sequences=True,
+    independent_samples=False, learning_rate=0.005,
+    decay_rate=0.001)
+rnn.plot_loss(plt, show=True)
+predict = rnn.predict(X_seed, time_steps_to_generate=5)
+for emb in predict:
+    print(word_emb.find_closest(emb,1))
 
-    rnn.plot_loss(plt, figax=(fig, ax), show=False)
 
-    predict = rnn.predict()
 
-    rnn = RNN(
-        hidden_activation='Tanh()',
-        output_activation='Identity()',
-        loss_function='mse()',
-        optimiser='SGD()',
-        regression=True,
-        threshold=1,
-        )
 
-    whole_sequence_output, hidden_state = rnn.fit(
-        X, y, epo,
-        num_hidden_nodes=hidden_nodes, return_sequences=True,
-        independent_samples=True, learning_rate=learning_rate_curr
-        )
+#for learning_rate_curr in learning_rates:
+#    fig, ax = plt.subplots()
+#    print(f'learning rate: {learning_rate_curr}')
+#    rnn = RNN(
+#        hidden_activation='Tanh()',
+#        output_activation='Identity()',
+#        loss_function='mse()',
+#        optimiser='AdaGrad()',
+#        regression=True,
+#        threshold=1,
+#        )
+#
+#    whole_sequence_output, hidden_state = rnn.fit(
+#        X, y, epo,
+#        num_hidden_nodes=hidden_nodes, return_sequences=True,
+#        independent_samples=True, learning_rate=learning_rate_curr)
+#
+#    rnn.plot_loss(plt, figax=(fig, ax), show=False)
+#
+#    predict = rnn.predict(X_seed)
+#    for emb in predict:
+#        print(word_emb.find_closest(emb,1))
+#
+#    rnn = RNN(
+#        hidden_activation='Tanh()',
+#        output_activation='Identity()',
+#        loss_function='mse()',
+#        optimiser='SGD()',
+#        regression=True,
+#        threshold=1,
+#        )
+#
+#    whole_sequence_output, hidden_state = rnn.fit(
+#        X, y, epo,
+#        num_hidden_nodes=hidden_nodes, return_sequences=True,
+#        independent_samples=True, learning_rate=learning_rate_curr
+#        )
+#
+#    rnn.plot_loss(plt, figax=(fig, ax), show=False)
+#
+#    predict = rnn.predict(X_seed)
+#    for emb in predict:
+#        print(word_emb.find_closest(emb,1))
+#
+#    rnn = RNN(
+#        hidden_activation='Tanh()',
+#        output_activation='Identity()',
+#        loss_function='mse()',
+#        optimiser='SGD_momentum()',
+#        regression=True,
+#        threshold=1,
+#        )
+#
+#    whole_sequence_output, hidden_state = rnn.fit(
+#        X, y, epo,
+#        num_hidden_nodes=hidden_nodes, return_sequences=True,
+#        independent_samples=True, learning_rate=learning_rate_curr,
+#        momentum_rate=0.9)
+#
+#    rnn.plot_loss(plt, figax=(fig, ax), show=False)
+#
+#    predict = rnn.predict(X_seed)
+#    for emb in predict:
+#        print(word_emb.find_closest(emb,1))
+#
+#    rnn = RNN(
+#        hidden_activation='Tanh()',
+#        output_activation='Identity()',
+#        loss_function='mse()',
+#        optimiser='RMSProp()',
+#        regression=True,
+#        threshold=1,
+#        )
+#
+#    whole_sequence_output, hidden_state = rnn.fit(
+#        X, y, epo,
+#        num_hidden_nodes=hidden_nodes, return_sequences=True,
+#        independent_samples=True, learning_rate=learning_rate_curr,
+#        decay_rate=0.001)
+#
+#    rnn.plot_loss(plt, figax=(fig, ax), show=True)
+#
+#    predict = rnn.predict(X_seed)
+#    for emb in predict:
+#        print(word_emb.find_closest(emb,1))
 
-    rnn.plot_loss(plt, figax=(fig, ax), show=False)
-
-    rnn = RNN(
-        hidden_activation='Tanh()',
-        output_activation='Identity()',
-        loss_function='mse()',
-        optimiser='SGD_momentum()',
-        regression=True,
-        threshold=1,
-        )
-
-    whole_sequence_output, hidden_state = rnn.fit(
-        X, y, epo,
-        num_hidden_nodes=hidden_nodes, return_sequences=True,
-        independent_samples=True, learning_rate=learning_rate_curr,
-        momentum_rate=0.9)
-
-    rnn.plot_loss(plt, figax=(fig, ax), show=False)
-
-    rnn = RNN(
-        hidden_activation='Tanh()',
-        output_activation='Identity()',
-        loss_function='mse()',
-        optimiser='RMSProp()',
-        regression=True,
-        threshold=1,
-        )
-
-    whole_sequence_output, hidden_state = rnn.fit(
-        X, y, epo,
-        num_hidden_nodes=hidden_nodes, return_sequences=True,
-        independent_samples=True, learning_rate=learning_rate_curr,
-        decay_rate=0.001)
-
-    rnn.plot_loss(plt, figax=(fig, ax), show=True)
 # plt.plot(rnn.get_stats()['loss'])
 # plt.show()
 # x_seed = X[0][0]
