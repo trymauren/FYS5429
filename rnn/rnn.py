@@ -272,31 +272,27 @@ _
         X = np.array(X, dtype=object)  # object to allow inhomogeneous shape
         y = np.array(y, dtype=object)  # object to allow inhomogeneous shape
 
-        samples, time_steps, num_features = X.shape
-        samples, time_steps_y, output_size = y.shape
+        samples = len(X)
+        num_features = len(X[0][0])
 
-        #self.learning_rate = learning_rate
+        samples = len(y)
+        output_size = len(y[0][0])
+
         self.output_size = output_size
         self.num_features = num_features
         self.num_hidden_nodes = num_hidden_nodes
-                
-        self.optimiser_params = optimiser_params
 
-        if num_hidden_states is None:
-            self.num_hidden_states = time_steps
-        else:
-            self.num_hidden_states = num_hidden_states
+        self.optimiser_params = optimiser_params
 
         self._init_weights()
 
-        partitions = np.floor(time_steps/self.num_hidden_states)
         self.stats['loss'] = [0]*epochs
 
-        if return_sequences:
-            sequence_output = np.zeros((samples, time_steps, output_size))
-        else:
-            sequence_output = np.zeros((samples, output_size))
-
+        # if return_sequences:
+        #     sequence_output = np.zeros((samples, time_steps, output_size))
+        # else:
+        #     sequence_output = np.zeros((samples, output_size))
+        sequence_output = None
         for e in tqdm(range(epochs)):
 
             for sample in range(samples):
@@ -305,9 +301,15 @@ _
                     if self.built:
                         self.hs[-1] = 0
 
-                # Mini-batch splitting
-                x_sample_split = np.split(X[sample], partitions, axis=0)
-                y_sample_split = np.split(y[sample], partitions, axis=0)
+                # Potential mini-batch splitting
+                time_steps = len(X[sample])
+                if num_hidden_states is None:
+                    self.num_hidden_states = time_steps
+                else:
+                    self.num_hidden_states = num_hidden_states
+                partitions = np.floor(time_steps/self.num_hidden_states)
+                x_sample_split = np.array_split(X[sample], partitions, axis=0)
+                y_sample_split = np.array_split(y[sample], partitions, axis=0)
 
                 for x_sample, y_sample in zip(x_sample_split, y_sample_split):
 
