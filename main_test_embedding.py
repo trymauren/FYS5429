@@ -22,19 +22,17 @@ plt.rc('figure', titlesize=BIGGER_SIZE)
 
 word_emb = WORD_EMBEDDING()
 
-sequence_length = 7
-print(text_proc.read_file("utils/three_little_pigs.txt", seq_length=sequence_length))
+sequence_length = 20
 
-X = np.array([word_emb.get_embeddings(str(s)) for s in text_proc.read_file("utils/three_little_pigs.txt", seq_length=sequence_length)], dtype=object)
-print(X.shape)
-print("X shape " + str(X.shape))
-y = np.array([word_emb.get_embeddings(str(s)) for s in text_proc.read_file("utils/three_little_pigs.txt",seq_length=sequence_length)], dtype=object)
-
-X_seed = word_emb.get_embeddings("The")[0]
-print(X_seed.shape)
+text1 = 'Hei jeg heter trym og er på ifi'
+print(text1)
+X = np.array([word_emb.get_embeddings(str(s)) for s in text1],
+             dtype=object)
+y = np.array([word_emb.get_embeddings(str(s)) for s in text1],
+             dtype=object)
 
 
-epo = 1000
+epo = 100
 hidden_nodes = 300
 learning_rates = [0.001, 0.003, 0.005, 0.01]
 
@@ -42,19 +40,23 @@ rnn = RNN(
     hidden_activation='Tanh()',
     output_activation='Identity()',
     loss_function='mse()',
-    optimiser='RMSProp()',
+    optimiser='AdaGrad()',
     regression=True,
     threshold=1,
     )
-whole_sequence_output, hidden_state = rnn.fit(
+
+hidden_state = rnn.fit(
     X, y, epo,
     num_hidden_nodes=hidden_nodes, return_sequences=True,
-    independent_samples=False, learning_rate=0.005,
-    decay_rate=0.001)
+    independent_samples=False, learning_rate=0.005)
 rnn.plot_loss(plt, show=True)
-predict = rnn.predict(X_seed, time_steps_to_generate=5)
+predict = rnn.predict(X[:3], time_steps_to_generate=2)
+
+# with open("child_book_1_dump.pkl", "wb") as f:
+#     pickle.dump(predict, f)
+
 for emb in predict:
-    print(word_emb.find_closest(emb,1))
+    print(word_emb.find_closest(emb, 1))
 
 
 
