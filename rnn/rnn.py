@@ -269,6 +269,8 @@ _
         X = np.array(X, dtype=object)  # object to allow inhomogeneous shape
         y = np.array(y, dtype=object)  # object to allow inhomogeneous shape
 
+        print("ÆÆÆÆÆH")
+        print(X.shape)
         samples, time_steps, num_features = X.shape
         samples, time_steps_y, output_size = y.shape
 
@@ -285,7 +287,6 @@ _
 
             for sample_x, sample_y in zip(X, y):
                 self.num_hidden_states = len(sample_x)
-
                 if independent_samples:
                     self._init_states()
                 else:
@@ -344,8 +345,8 @@ _
         # X[0] = x_seed
         vec_length = len(X[0][0])
         X_gen = np.zeros((time_steps_to_generate, vec_length))
-        X_gen[0] = X[-1][0]
-        for x in X:
+        X_gen[0] = X[-1][-1]
+        for x in X[:-1]:
             self._forward(np.array(x, dtype=float))
         self._forward(np.array(X_gen, dtype=float), generate=True)
         return self.ys
