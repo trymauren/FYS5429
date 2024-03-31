@@ -2,64 +2,57 @@ import sys
 import git
 import numpy as np
 from rnn.rnn import RNN
+from utils.activations import Relu, Tanh
 import matplotlib.pyplot as plt
 import utils.text_processing as text_proc
 from utils.text_processing import WORD_EMBEDDING
 path_to_root = git.Repo('.', search_parent_directories=True).working_dir
 sys.path.append(path_to_root)
 
-SMALL_SIZE = 8
-MEDIUM_SIZE = 10
-BIGGER_SIZE = 12
-plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
-plt.rc('axes', titlesize=MEDIUM_SIZE)     # fontsize of the axes title
-plt.rc('axes', labelsize=MEDIUM_SIZE)    # fontsize of the x and y labels
-plt.rc('xtick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
-plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
-plt.rc('legend', fontsize=MEDIUM_SIZE)    # legend fontsize
-plt.rc('figure', titlesize=BIGGER_SIZE)
+
+def create_sines(examples=10, seq_length=100):
+    X = []
+    y = []
+    for _ in range(examples):
+        example_x = (np.random.random_sample())*np.sin(np.linspace(0, 8* np.pi, 4*seq_length+1))
+        X.append(example_x[0:-1])
+        y.append(example_x[1:])
+    
+    return np.array([X]), np.array([y])
 
 
-word_emb = WORD_EMBEDDING()
+seq_length = 20
+examples = 50
+epo = 4000
 
-text_data = text_proc.read_file("utils/three_little_pigs.txt")
-
-X,y = np.array(word_emb.translate_and_shift(text_data))
-
-X = np.array([X])
-y = np.array([y])
-
-X_seed = np.array([word_emb.get_embeddings("little")])
-
-epo = 300
-hidden_nodes = 300
-learning_rates = [0.001, 0.003, 0.005, 0.01]
-
+hidden_nodes = 50
 rnn = RNN(
     hidden_activation='Tanh()',
-    output_activation='Identity()',
+    output_activation='Tanh()',
     loss_function='mse()',
     optimiser='AdaGrad()',
-    regression=True,
-    threshold=1,
-    )
+    regression=True)
+
+X, y = create_sines(examples=examples, seq_length=seq_length)
+
+#Plotting the sine waves that are passed as training data
+for sine in X[0]:
+    plt.plot(np.linspace(0,seq_length,4*seq_length),sine)
+plt.show()
+X_seed, y_seed = create_sines(examples=1, seq_length=20)
 
 hidden_state = rnn.fit(
-    X, y, epo,
-    num_hidden_nodes=hidden_nodes, return_sequences=True,
-    independent_samples=False, learning_rate=0.005)
-rnn.plot_loss(plt, show=True)
-
-predict = rnn.predict(X_seed, time_steps_to_generate=3)
-
-# with open("child_book_1_dump.pkl", "wb") as f:
-#     pickle.dump(predict, f)
-
-for emb in predict:
-    print(word_emb.find_closest(emb, 1))
+    X, y, epo, learning_rate=0.0001,
+    num_hidden_nodes=hidden_nodes, return_sequences=True)
 
 
+ret = rnn.predict(X_seed)
+plt.plot(np.linspace(0,seq_length,4*seq_length), ret[0])
+plt.show()
 
+epo = 1000
+hidden_nodes = 300
+learning_rates = [0.001, 0.003, 0.005, 0.01]
 
 #for learning_rate_curr in learning_rates:
 #    fig, ax = plt.subplots()
@@ -81,8 +74,7 @@ for emb in predict:
 #    rnn.plot_loss(plt, figax=(fig, ax), show=False)
 #
 #    predict = rnn.predict(X_seed)
-#    for emb in predict:
-#        print(word_emb.find_closest(emb,1))
+#    plt.plot(predict)
 #
 #    rnn = RNN(
 #        hidden_activation='Tanh()',
@@ -102,8 +94,7 @@ for emb in predict:
 #    rnn.plot_loss(plt, figax=(fig, ax), show=False)
 #
 #    predict = rnn.predict(X_seed)
-#    for emb in predict:
-#        print(word_emb.find_closest(emb,1))
+#    plt.plot(predict)
 #
 #    rnn = RNN(
 #        hidden_activation='Tanh()',
@@ -123,8 +114,7 @@ for emb in predict:
 #    rnn.plot_loss(plt, figax=(fig, ax), show=False)
 #
 #    predict = rnn.predict(X_seed)
-#    for emb in predict:
-#        print(word_emb.find_closest(emb,1))
+#    plt.plot(predict)
 #
 #    rnn = RNN(
 #        hidden_activation='Tanh()',
@@ -144,15 +134,23 @@ for emb in predict:
 #    rnn.plot_loss(plt, figax=(fig, ax), show=True)
 #
 #    predict = rnn.predict(X_seed)
-#    for emb in predict:
-#        print(word_emb.find_closest(emb,1))
+#    plt.plot(predict)
 
-# plt.plot(rnn.get_stats()['loss'])
+
+# X, y = create_sines(examples=examples, seq_length=50)
+# rnn.fit(X, y, epo, num_hidden_states=50, num_hidden_nodes=hidden_nodes)
+# y_pred_val = rnn.predict(X_val)
+# plt.plot(X_val[0], label='X_val', linestyle='solid', color='red')
+# plt.plot(y_pred_val, label='y_pred_val', linestyle='dotted', color='blue')
+# plt.plot(y_val[0], label='y_val')
+# plt.legend()
 # plt.show()
-# x_seed = X[0][0]
-# print(word_emb.find_closest(x_seed, number=1))
-# ret = rnn.predict(x_seed, hidden_state, 10)
 
-# for emb in ret:
-#     word = word_emb.find_closest(emb, number=1)
-#     print(word)
+# stats = rnn.get_stats()
+# plt.plot(stats['loss'], label='loss')
+# plt.legend()
+# plt.show()
+# plt.plot(ret, label='output sine')
+# plt.plot(y, label='true sine')
+# plt.legend()
+# plt.show()

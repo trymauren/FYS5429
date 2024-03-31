@@ -241,6 +241,13 @@ _
 
         """
 
+        if X.ndim != 3:
+            raise ValueError("Input data for X has to be of 3 dimensions:\
+                             Samples x time steps x features")
+        if y.ndim != 3:
+            raise ValueError("Input data for y has to be of 3 dimensions:\
+                             Samples x time steps x features")
+        print("Please wait, training model:")
         X = np.array(X, dtype=object)  # object to allow inhomogeneous shape
         y = np.array(y, dtype=object)  # object to allow inhomogeneous shape
 
@@ -260,7 +267,6 @@ _
 
             for sample_x, sample_y in zip(X, y):
                 self.num_hidden_states = len(sample_x)
-
                 if independent_samples:
                     self._init_states()
                 else:
@@ -285,6 +291,7 @@ _
             'saved_models/',
             self.name
         )
+        print("Training complete, proceed")
         return self.hs[-1]
 
     def predict(
@@ -308,18 +315,23 @@ _
         -------------------------------
         np.ndarray
         - Generated next samples
-
         """
         # if h_seed is None:
         #     self.hs[-1] = np.zeros_like(self.hs[-1])
         # else:
         #     self.hs[-1] = h_seed
+        if X.ndim != 3:
+            raise ValueError("Input data for X has to be of 3 dimensions:\
+                             Samples x time steps x features")
+
         self.num_hidden_states = time_steps_to_generate
         self._init_states()
         # X = np.zeros((time_steps_to_generate, len(x_seed)))
         # X[0] = x_seed
-        for x in X:
-            # print(x)
+        vec_length = len(X[0][0])
+        X_gen = np.zeros((time_steps_to_generate, vec_length))
+        X_gen[0] = X[-1][-1]
+        for x in X[:-1]:
             self._forward(np.array(x, dtype=float))
         self._forward(np.array(X[-1], dtype=float), generate=True)
         return self.ys
