@@ -265,7 +265,9 @@ _
         (np.ndarray, np.ndarray) = (output states, hidden state)
 
         """
-
+        X = np.array(X, dtype=object)  # object to allow inhomogeneous shape
+        y = np.array(y, dtype=object)  # object to allow inhomogeneous shape
+        
         if X.ndim != 3:
             raise ValueError("Input data for X has to be of 3 dimensions:\
                              Samples x time steps x features")
@@ -273,8 +275,7 @@ _
             raise ValueError("Input data for y has to be of 3 dimensions:\
                              Samples x time steps x features")
         print("Please wait, training model:")
-        X = np.array(X, dtype=object)  # object to allow inhomogeneous shape
-        y = np.array(y, dtype=object)  # object to allow inhomogeneous shape
+        
 
         samples, time_steps, num_features = X.shape
         samples, time_steps_y, output_size = y.shape
