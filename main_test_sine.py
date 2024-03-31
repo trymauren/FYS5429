@@ -23,7 +23,7 @@ def create_sines(examples=10, seq_length=100):
 
 seq_length = 20
 examples = 50
-epo = 4000
+epo = 400
 
 hidden_nodes = 50
 rnn = RNN(
@@ -37,9 +37,10 @@ X, y = create_sines(examples=examples, seq_length=seq_length)
 
 #Plotting the sine waves that are passed as training data
 for sine in X[0]:
-    plt.plot(np.linspace(0,seq_length,4*seq_length),sine)
+    plt.plot(sine)
 plt.show()
-X_seed, y_seed = create_sines(examples=1, seq_length=20)
+
+X_seed, y_seed = create_sines(examples=1, seq_length=seq_length)
 
 hidden_state = rnn.fit(
     X, y, epo, learning_rate=0.0001,
@@ -47,7 +48,7 @@ hidden_state = rnn.fit(
 
 
 ret = rnn.predict(X_seed)
-plt.plot(np.linspace(0,seq_length,4*seq_length), ret[0])
+plt.plot(ret[0])
 plt.show()
 
 epo = 1000
