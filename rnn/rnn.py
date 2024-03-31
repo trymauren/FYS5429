@@ -265,7 +265,6 @@ _
         self.stats['loss'] = np.zeros(epochs)
 
         for e in tqdm(range(epochs)):
-
             for sample_x, sample_y in zip(X, y):
                 self.num_hidden_states = len(sample_x)
                 if independent_samples:
@@ -285,7 +284,7 @@ _
 
                 self._loss(np.array(sample_y, dtype=float), self.ys, e)
 
-                self._backward()
+                self._backward(num_backsteps=num_backsteps)
 
         read_load_model.save_model(  # pickle dump the trained estimator
             self,
@@ -329,12 +328,12 @@ _
         self._init_states()
         # X = np.zeros((time_steps_to_generate, len(x_seed)))
         # X[0] = x_seed
-        vec_length = len(X[0][0])
+        _,_,vec_length = X.shape
         X_gen = np.zeros((time_steps_to_generate, vec_length))
         X_gen[0] = X[-1][-1]
         for x in X[:-1]:
             self._forward(np.array(x, dtype=float))
-        self._forward(np.array(X[-1], dtype=float), generate=True)
+        self._forward(np.array(X_gen, dtype=float), generate=True)
         return self.ys
 
     def _init_weights(self) -> None:
