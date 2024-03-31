@@ -94,7 +94,7 @@ class RMSProp(Optimiser):
         return self.update
 
 
-def clip_gradient(gradient_vector: np.ndarray, threshold: float) -> np.ndarray:
+def clip_gradient(gradients: np.ndarray, threshold: float) -> np.ndarray:
     """
     Finds l2-norm of gradient vector and normalizes it.
     TODO Find out if actual delta parameters are the ones to be adjusted 
@@ -105,14 +105,11 @@ def clip_gradient(gradient_vector: np.ndarray, threshold: float) -> np.ndarray:
     https://towardsdatascience.com/what-is-gradient-clipping-b8e815cdfb48
     g = g*(threshold/l2norm(g)) or g = threshold*(g/l2norm(g))
     """
-    grad_norm_col = np.linalg.norm(gradient_vector, ord=2, axis=1)
-    grad_norm = np.linalg.norm(grad_norm_col, ord=2, axis=0)
-    #grad_norm = np.sqrt(sum((np.sum(g**2)) for g in gradient_vector)) #NOT RIGHT
-    
-    #Only need positive threshold check as l2 norm ensues we only get 
-    #positive norm values
-    if grad_norm > threshold:
-        gradient_vector = gradient_vector * float(threshold/grad_norm)
-    else:
-        return gradient_vector
-    return gradient_vector
+    # for gradient in gradients:
+    #     gradient
+
+    for g in gradients:
+        norm_g = np.linalg.norm(g, ord=2)
+        if norm_g > threshold:
+            g *= threshold/norm_g
+    return gradients
