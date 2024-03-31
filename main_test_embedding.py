@@ -31,8 +31,8 @@ y = np.array([y])
 
 X_seed = np.array([word_emb.get_embeddings("three")])
 
-epo = 5000
-hidden_nodes = 600
+epo = 50
+hidden_nodes = 100
 learning_rates = [0.001, 0.003, 0.005, 0.01]
 
 rnn = RNN(
