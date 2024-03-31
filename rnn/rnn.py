@@ -20,7 +20,6 @@ from tqdm import tqdm
 
 path_to_root = git.Repo('.', search_parent_directories=True).working_dir
 sys.path.append(path_to_root)
-np.random.seed(24)
 
 
 class RNN:
@@ -31,16 +30,15 @@ class RNN:
             output_activation: Callable = None,
             loss_function: Callable = None,
             optimiser: Callable = None,
-            regression: bool = False,
-            classification: bool = False,
             name: str = 'rnn',
             config: Dict | Path | str = 'default',
             seed: int = 24,
-            threshold: float = 5,
+            clip_threshold: float = 5,
             **optimiser_params,
             ) -> None:
 
         np.random.seed(seed)
+
         # Setting activation functions, loss function and optimiser
         if not hidden_activation:
             hidden_activation = Relu()
@@ -58,8 +56,6 @@ class RNN:
         self._optimiser = eval(optimiser)
         self.optimiser_params = optimiser_params
 
-        self.regression = regression
-        self.classification = classification
         # Initialize weights and biases as None until properly
         # initialized in fit() method.
         # xh = input  -> hidden
@@ -75,7 +71,7 @@ class RNN:
 
         self.name = name
 
-        self.threshold = threshold
+        self.clip_threshold = clip_threshold
 
         self.stats = {
             'other stuff': [],
@@ -130,34 +126,14 @@ class RNN:
 
         #NOTE: Implemented gradient clipping, however shape error, 
         #      gradient norm is a list of floats, not one number
-        loss_grad = optimisers.clip_gradient(self._loss_function.grad(),
-                                           self.threshold)
+        loss_grad = self._loss_function.grad()
+
         num_backsteps = min(len(self.hs)-1, num_backsteps)
         for t in range(num_backsteps, -1, -1):
 
-            """ BELOW IS CALCULATION OF GRADIENTS W/RESPECT TO HIDDEN_STATES
-            - SEE (1-~20) IN TEX-DOCUMENT """
-
-            """OUTDATED"""
-            # """Just doing some copying. grad_o_Cost will, in the next
-            # line of code, contain the cost vector"""
-            # grad_o_Cost = np.copy(y_pred[t])
-
-            # """See deep learning book, 10.18 for
-            # explanation of following line. Also:
-            # http://cs231n.github.io/neural-networks-case-study/#grad
-            # Eventually, one can find grad(C) w/ respect to C^t"""
-            # grad_o_Cost[y_true[t]] -= 1
-            """OUTDATED END"""
-
-            """ NEW """
-            # grad_o_Cost = self._loss_function.grad()
-            if self.regression:
-                grad_o_Cost_t = loss_grad[:, t]
-            if self.classification:
-                print('not implemented error')
-            """ NEW END """
-
+            """ BELOW IS CALCULATION OF GRADIENTS W/RESPECT TO HIDDEN_STATES """
+            grad_o_Cost_t = loss_grad[:, t]
+            # grad_h_Cost = optimisers.clip_gradient(grad_h_Cost, self.clip_threshold)
             """A h_state's gradient update are both influenced by the
             preceding h_state at time t+1, as well as the output at
             time t. The cost/loss of the current output derivated with
@@ -169,7 +145,7 @@ class RNN:
             Eq. 16 in tex-document(see also eq. 15 for first iteration of BPPT)
             Eq. 10.20 in DLB"""
             grad_h_Cost = prev_grad_h_Cost + self.w_hy.T @ grad_o_Cost_t
-            grad_h_Cost = optimisers.clip_gradient(grad_h_Cost, self.threshold)
+
             # print(prev_grad_h_Cost.shape)
             # print(self.w_hy.T.shape)
             # print(grad_h_Cost.shape)
@@ -197,11 +173,10 @@ class RNN:
                   self.b_hy, self.b_hh]
         deltas = [deltas_w_hy, deltas_w_hh, deltas_w_xh,
                   deltas_b_hy, deltas_b_hh]
-        # clipped_deltas = optimisers.clip_gradient([deltas_w_hy, deltas_w_hh, deltas_w_xh,
-        #          deltas_b_hy, deltas_b_hh], 2)
-        steps = self._optimiser(deltas, **self.optimiser_params)
+        clipped_deltas = optimisers.clip_gradient(deltas, self.clip_threshold)
+        # steps = self._optimiser(deltas, **self.optimiser_params)
 
-        #steps = self._optimiser(clipped_deltas, self.learning_rate)
+        steps = self._optimiser(clipped_deltas, **self.optimiser_params)
 
         for param, step in zip(params, steps):
             param -= step
@@ -269,8 +244,8 @@ _
         X = np.array(X, dtype=object)  # object to allow inhomogeneous shape
         y = np.array(y, dtype=object)  # object to allow inhomogeneous shape
 
-        samples, time_steps, num_features = X.shape
-        samples, time_steps_y, output_size = y.shape
+        _, _, num_features = X.shape
+        _, _, output_size = y.shape
 
         self.learning_rate = learning_rate
         self.output_size = output_size
@@ -279,7 +254,7 @@ _
 
         self._init_weights()
 
-        self.stats['loss'] = [0]*epochs
+        self.stats['loss'] = np.zeros(epochs)
 
         for e in tqdm(range(epochs)):
 
@@ -343,43 +318,34 @@ _
         self._init_states()
         # X = np.zeros((time_steps_to_generate, len(x_seed)))
         # X[0] = x_seed
-        vec_length = len(X[0][0])
-        X_gen = np.zeros((time_steps_to_generate, vec_length))
-        X_gen[0] = X[-1][0]
         for x in X:
+            # print(x)
             self._forward(np.array(x, dtype=float))
-        self._forward(np.array(X_gen, dtype=float), generate=True)
+        self._forward(np.array(X[-1], dtype=float), generate=True)
         return self.ys
 
-    def _init_weights(
-            self,
-            scale=0.1) -> None:
+    def _init_weights(self) -> None:
         """
         Initialises weights and biases and assign them to instance variables.
 
         Parameters:
         -------------------------------
-        scale : float
-            - scaling of init weights
+        None
         Returns:
         -------------------------------
         None
         """
-        # Notes:
-        # w_xh = 1 x n, x = n x 1, => z = 1 x 1 (per state)
-        # w_hh = hidden_layers x hidden_layers = 1 x 1, h = 1 x 1 (per state)
-        # w_hy = 1 x hidden_layers = 1 x 1, y = 1 x 1 (per state)
-        self.w_xh = np.random.randn(
-            self.num_hidden_nodes, self.num_features) * scale
-        self.w_hh = np.random.randn(
-            self.num_hidden_nodes, self.num_hidden_nodes) * scale
-        self.w_hy = np.random.randn(
-            self.output_size, self.num_hidden_nodes) * scale
+        self.w_xh = np.random.uniform(
+            -0.3, 0.3, size=(self.num_hidden_nodes, self.num_features))
+        self.w_hh = np.random.uniform(
+            -0.3, 0.3, size=(self.num_hidden_nodes, self.num_hidden_nodes))
+        self.w_hy = np.random.uniform(
+            -0.3, 0.3, size=(self.output_size, self.num_hidden_nodes))
 
-        self.b_hh = np.random.randn(
-            1, self.num_hidden_nodes) * scale
-        self.b_hy = np.random.randn(
-            1, self.output_size) * scale
+        self.b_hh = np.random.uniform(
+            -0.3, 0.3, size=(1, self.num_hidden_nodes))
+        self.b_hy = np.random.uniform(
+            -0.3, 0.3, size=(1, self.output_size))
 
     def _init_states(self) -> None:
         """
@@ -392,15 +358,9 @@ _
         -------------------------------
         None
         """
-
-        # if self.built:
-        #     prev_h = self.hs[-1]
         self.hs = np.zeros((self.num_hidden_states, self.num_hidden_nodes))
-        # if self.built:
-        #     self.hs[-1] = prev_h
         self.xs = np.zeros((self.num_hidden_states, self.num_hidden_nodes))
         self.ys = np.zeros((self.num_hidden_states, self.output_size))
-        # self.built = True
 
     def _loss(self, y_true, y_pred, epoch):
         loss = self._loss_function(y_true, y_pred)
