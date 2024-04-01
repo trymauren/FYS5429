@@ -73,9 +73,7 @@ class RNN:
 
         self.clip_threshold = clip_threshold
 
-        self.stats = {
-            'other stuff': [],
-        }
+        self.stats = {}
 
     def _forward(
             self,
@@ -189,6 +187,8 @@ class RNN:
             num_backsteps: int = None,
             return_sequences: bool = False,
             independent_samples: bool = True,
+            X_val: np.ndarray = None,
+            y_val: np.ndarray = None,
             ) -> np.ndarray:
         """
         Method for training the RNN, iteratively runs _forward(), and
@@ -236,12 +236,13 @@ _
 
         Returns:
         -------------------------------
-        (np.ndarray, np.ndarray) = (output states, hidden state)
-
+        (np.ndarray, np.ndarray) =
+        (output states of last seen sample, hidden state of last epoch)
         """
+
         X = np.array(X, dtype=object)  # object to allow inhomogeneous shape
         y = np.array(y, dtype=object)  # object to allow inhomogeneous shape
-        
+
         if X.ndim != 3:
             raise ValueError("Input data for X has to be of 3 dimensions:\
                              Samples x time steps x features")
@@ -249,7 +250,6 @@ _
             raise ValueError("Input data for y has to be of 3 dimensions:\
                              Samples x time steps x features")
         print("Please wait, training model:")
-        
 
         _, _, num_features = X.shape
         _, _, output_size = y.shape
@@ -260,29 +260,59 @@ _
 
         self._init_weights()
 
-        self.stats['loss'] = np.zeros(epochs)
+        self.stats['train_loss'] = np.zeros(epochs)
+        if X_val and y_val:
+            self.stats['val_loss'] = np.zeros(epochs)
 
         for e in tqdm(range(epochs)):
-            for sample_x, sample_y in zip(X, y):
-                self.num_hidden_states = len(sample_x)
-                if independent_samples:
-                    self._init_states()
-                else:
-                    prev_h = None
-                    if self.hs is not None:
-                        prev_h = self.hs[-1]
-                    self._init_states()
-                    if prev_h is not None:
-                        self.hs[-1] = prev_h
 
+            # looping over each sequence in dataset
+            for idx, (sample_x, sample_y) in enumerate(zip(X, y)):
+
+                self.num_hidden_states = len(sample_x)
+
+                # re-initialise states for each sample
+                self._init_states(independent_samples=independent_samples)
+
+                # one forward pass of all entries in sample_x
                 y_pred = self._forward(
                     np.array(sample_x, dtype=float),
                     generate=False
                 )
 
+                # calculate loss
                 self._loss(np.array(sample_y, dtype=float), self.ys, e)
 
+                if X_val and y_val:
+
+                    # Store everything
+                    self.store()
+
+                    self.num_hidden_states = len(X_val[idx])
+                    self._init_states(
+                        independent_samples=independent_samples,
+                        validation=True)
+
+                    # one forward pass of all entries in X_val[idx]
+                    y_pred = self._forward(
+                        np.array(X_val[idx], dtype=float),
+                        generate=False
+                    )
+
+                    # calculate loss
+                    self._loss(np.array(y_val[idx], dtype=float), self.ys, e)
+
+                    self._val_hs[-1] = np.copy(self.hs[-1])
+
+                    # Restore
+                    self.restore_states()
+
+                # one backward pass for each entry in x_sample (or less,
+                # if num_backsteps is set to < len(x_sample))
                 self._backward(num_backsteps=num_backsteps)
+
+            # reset previous hidden state each epoch
+            self.hs[-1] = np.zeros_like(self.hs[-1])
 
         read_load_model.save_model(  # pickle dump the trained estimator
             self,
@@ -357,9 +387,10 @@ _
         self.b_hy = np.random.uniform(
             -0.3, 0.3, size=(1, self.output_size))
 
-    def _init_states(self) -> None:
+    def _init_states(self, independent_samples=True, train=True) -> None:
         """
-        Initialises states and assign them to instance variables.
+        Initialises states and assign them to instance variables. If
+        independent samples is set, hs[-1] is not preserved.
 
         Parameters:
         -------------------------------
@@ -368,13 +399,72 @@ _
         -------------------------------
         None
         """
+        if train:
+            if independent_samples:
+                self._init_states_zero()
+
+            else:
+                if self.built:
+                    prev_h = np.copy(self.hs[-1])
+                    self._init_states_zero()
+                    self.hs[-1] = prev_h
+                else:
+                    self._init_states_zero()
+                    self.built = True
+
+        else:
+            if independent_samples:
+                self._init_states_internal()
+
+            else:
+                if self.built:
+                    prev_h = np.copy(self.val_hs[-1])
+                    self._init_states_zero()
+                    self.val_hs[-1] = prev_h
+                else:
+                    self._init_states_zero()
+                    self.built = True
+
+    def _init_states_zero(self):
         self.hs = np.zeros((self.num_hidden_states, self.num_hidden_nodes))
         self.xs = np.zeros((self.num_hidden_states, self.num_hidden_nodes))
         self.ys = np.zeros((self.num_hidden_states, self.output_size))
 
-    def _loss(self, y_true, y_pred, epoch):
+    def _store_states(self):
+        self.train_states = np.copy(self.hs, self.xs, self.ys)
+
+    def _restore_states(self):
+        self.hs, self.xs, self.ys = self.train_states
+
+    def _loss(self, y_true, y_pred, epoch, y_val_true=None, y_val_pred=None):
+        """
+        Calculates loss using self._loss_function() and stores loss in
+        self.stats['{val}/{train}_loss']
+
+        Parameters:
+        -------------------------------
+        y_true : np.ndarray
+        - The label of an x_sample
+
+        y_pred : np.ndarray
+        - The predicted value of an x_sample
+
+        epoch : integer
+        - For correct placement in statistics-dict
+
+        y_val_true : np.ndarray
+
+        y_val_pred : np.ndarray
+
+        Returns
+        -------------------------------
+        None
+        """
         loss = self._loss_function(y_true, y_pred)
-        self.stats['loss'][epoch] += np.mean(loss)
+        self.stats['train_loss'][epoch] += np.mean(loss)
+
+        if y_val_true and y_val_pred:
+            self.stats['val_loss'][epoch] += np.mean(loss)
 
     def plot_loss(self, plt, figax=None, savepath=None, show=False):
         # Some config stuff
