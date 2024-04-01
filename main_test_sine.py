@@ -14,26 +14,26 @@ def create_sines(examples=10, seq_length=100):
     X = []
     y = []
     for _ in range(examples):
-        example_x = np.array([np.sin(np.linspace(0, 8* np.pi, seq_length+1))]).T
+        example_x = np.array([np.random.uniform(-2,2)*np.sin(np.linspace(0, 4*np.pi, seq_length+1))]).T
         X.append(example_x[0:-1])
         y.append(example_x[1:])
     
     return np.array(X), np.array(y)
 
 #Sine creation
-seq_length = 100
-examples = 1
+seq_length = 20
+examples = 100
 
 #Prediction
-seed_length = 30
+seed_length = 2
 time_steps_to_predict = seq_length - seed_length
 
 #RNN init
-epo = 1000
+epo = 100
 hidden_nodes = 100
-num_backsteps = seed_length
-learning_rates = [0.003]#[0.001, 0.003, 0.005, 0.01]
-optimisers = ['AdaGrad()', 'SGD()', 'SGD_momentum()']
+num_backsteps = seq_length
+learning_rates = [0.001,0.003,0.005,0.007,0.009]
+optimisers = ['AdaGrad()', 'SGD()', 'SGD_momentum()','RMSProp()']
 
 #Plotting
 offset = 3
@@ -49,8 +49,8 @@ for sine in X:
     plt.plot(sine)
 plt.show()
 
-X_val = np.array([np.sin(np.linspace(0, 8* np.pi, seq_length+1))]).T
-X_seed = np.array([X_val[:seed_length]])
+X_val, y_val = create_sines(examples=1,seq_length=seq_length)
+X_seed = np.array([X_val[0][:seed_length]])
 
 
 for learning_rate_curr in learning_rates:
@@ -71,10 +71,11 @@ for learning_rate_curr in learning_rates:
             loss_function='mse()',
             optimiser=optimiser,
             clip_threshold=1,
+            learning_rate=learning_rate_curr,
             )
 
         hidden_state = rnn.fit(
-            X, y, epo, learning_rate=learning_rate_curr,
+            X, y, epo,
             num_hidden_nodes=hidden_nodes, return_sequences=True,
             num_backsteps=num_backsteps)
 
@@ -86,7 +87,7 @@ for learning_rate_curr in learning_rates:
         ax_pred.plot(plot_line - (i+1)*offset, label=str(rnn._optimiser.__class__.__name__))
         ax_pred.legend()
     
-    ax_pred.plot(X_val, label = "X val")
+    ax_pred.plot(X_val[0], label = "X val")
     ax_pred.legend()
 
     plt.show()
