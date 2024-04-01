@@ -15,6 +15,7 @@ from utils.optimisers import SGD, SGD_momentum, AdaGrad, RMSProp
 from utils import read_load_model
 import utils.text_processing as text_proc
 from utils.text_processing import WORD_EMBEDDING
+import matplotlib
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
@@ -472,6 +473,9 @@ _
             fig, ax = plt.subplots()
         else:
             fig, ax = figax
+        ax.set_yscale('symlog')
+        ax.set_yticks([5, 10, 20, 50, 100, 200, 500, 1000])
+        ax.get_yaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
         ax.plot(
                 self.stats['loss'],
                 label=str(self._optimiser.__class__.__name__))
