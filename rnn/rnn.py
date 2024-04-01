@@ -185,7 +185,6 @@ class RNN:
             X: np.ndarray = None,
             y: np.ndarray = None,
             epochs: int = None,
-            learning_rate: float = 0.01,
             num_hidden_nodes: int = 5,
             num_backsteps: int = None,
             return_sequences: bool = False,
@@ -255,7 +254,6 @@ _
         _, _, num_features = X.shape
         _, _, output_size = y.shape
 
-        self.learning_rate = learning_rate
         self.output_size = output_size
         self.num_features = num_features
         self.num_hidden_nodes = num_hidden_nodes
