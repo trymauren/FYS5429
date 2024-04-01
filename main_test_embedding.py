@@ -23,7 +23,7 @@ plt.rc('figure', titlesize=BIGGER_SIZE)
 
 word_emb = WORD_EMBEDDING()
 
-text_data = text_proc.read_file("utils/three_little_pigs.txt")
+text_data = text_proc.read_file("data/three_little_pigs.txt")
 
 X,y = np.array(word_emb.translate_and_shift(text_data))
 print(X.shape)
@@ -33,7 +33,7 @@ y = np.array([y])
 train = True
 if train:
 
-    epo = 20000
+    epo = 100
     hidden_nodes = 50
     # learning_rates = [0.001, 0.003, 0.005, 0.01]
 
@@ -43,19 +43,20 @@ if train:
         loss_function='mse()',
         optimiser='AdaGrad()',
         clip_threshold=1,
-        name='three_little_pigs_large_embedding'
+        name='three_little_pigs_large_embedding',
+        learning_rate=0.05,
         )
 
     hidden_state = rnn.fit(
         X, y, epo,
         num_hidden_nodes=hidden_nodes, return_sequences=True,
-        independent_samples=True, learning_rate=0.05, num_backsteps=np.inf)
+        independent_samples=True, num_backsteps=np.inf)
 
     rnn.plot_loss(plt, show=True)
 
 else:
 
-    X_seed = np.array([word_emb.get_embeddings("Three little")])
+    X_seed = np.array([word_emb.get_embeddings("Three")])
     rnn = load_model('saved_models/three_little_pigs_large_embedding')
     predict = rnn.predict(X_seed, time_steps_to_generate=3)
 
