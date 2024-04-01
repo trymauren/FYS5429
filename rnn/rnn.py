@@ -292,7 +292,7 @@ _
             self.name
         )
         print("Training complete, proceed")
-        return self.hs[-1]
+        return self.ys, self.hs[-1]
 
     def predict(
             self,
