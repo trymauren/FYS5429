@@ -29,7 +29,7 @@ seed_length = 2
 time_steps_to_predict = seq_length - seed_length
 
 #RNN init
-epo = 100
+epo = 10
 hidden_nodes = 100
 num_backsteps = seq_length
 learning_rates = [0.001,0.003,0.005,0.007,0.009]
@@ -47,14 +47,15 @@ plt.xlabel("Time(t)")
 
 for sine in X:
     plt.plot(sine)
-plt.show()
+plt.savefig(f'Sine_training_data | size = {examples}')
 
 X_val, y_val = create_sines(examples=1,seq_length=seq_length)
 X_seed = np.array([X_val[0][:seed_length]])
 
 
 for learning_rate_curr in learning_rates:
-    print(f'learning rate: {learning_rate_curr}')
+    print(f'\n\n---------------------\nlearning rate: {learning_rate_curr}')
+    print('---------------------')
 
     fig_loss, ax_loss = plt.subplots()
     fig_pred, ax_pred = plt.subplots()
@@ -90,5 +91,8 @@ for learning_rate_curr in learning_rates:
     ax_pred.plot(X_val[0], label = "X val")
     ax_pred.legend()
 
-    plt.show()
+    ax_loss.set_title(f"Training loss | learning rate: {learning_rate_curr}")
+
+    fig_loss.savefig(f'Sine_train_loss_{learning_rate_curr}.svg')
+    plt.savefig(f'Sine_pred_{learning_rate_curr}.svg')
 
