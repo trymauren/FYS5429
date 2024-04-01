@@ -56,7 +56,9 @@ class Classification_Logloss(LossFunction):
 
     def grad(self):
         probabilities = np.copy(self.probabilities)
-        # for t in range(len(probabilities)):
-        #     probabilities[t] -= self.y_true[t]
+        # See deep learning book, 10.18 for
+        # explanation of following line. Also:
+        # http://cs231n.github.io/neural-networks-case-study/#grad
+        # Eventually, one can find grad(C) w/ respect to C^t
         probabilities -= self.y_true
         return probabilities.T
