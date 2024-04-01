@@ -109,7 +109,7 @@ def clip_gradient(gradients: np.ndarray, threshold: float) -> np.ndarray:
     #     gradient
 
     for g in gradients:
-        norm_g = np.linalg.norm(g, ord=2)
+        norm_g = np.linalg.norm(g, ord=1)
         if norm_g > threshold:
             g *= threshold/norm_g
     return gradients
