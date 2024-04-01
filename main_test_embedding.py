@@ -5,6 +5,7 @@ from rnn.rnn import RNN
 import matplotlib.pyplot as plt
 import utils.text_processing as text_proc
 from utils.text_processing import WORD_EMBEDDING
+from utils.read_load_model import load_model
 path_to_root = git.Repo('.', search_parent_directories=True).working_dir
 sys.path.append(path_to_root)
 
@@ -29,33 +30,37 @@ print(X.shape)
 X = np.array([X])
 y = np.array([y])
 
-X_seed = np.array([word_emb.get_embeddings("three")])
+train = True
+if train:
 
-epo = 50
-hidden_nodes = 100
-learning_rates = [0.001, 0.003, 0.005, 0.01]
+    epo = 20000
+    hidden_nodes = 50
+    # learning_rates = [0.001, 0.003, 0.005, 0.01]
 
-rnn = RNN(
-    hidden_activation='Tanh()',
-    output_activation='Identity()',
-    loss_function='mse()',
-    optimiser='AdaGrad()',
-    clip_threshold=1,
-    )
+    rnn = RNN(
+        hidden_activation='Tanh()',
+        output_activation='Identity()',
+        loss_function='mse()',
+        optimiser='AdaGrad()',
+        clip_threshold=1,
+        name='three_little_pigs_large_embedding'
+        )
 
-hidden_state = rnn.fit(
-    X, y, epo,
-    num_hidden_nodes=hidden_nodes, return_sequences=True,
-    independent_samples=False, learning_rate=0.005, num_backsteps=100)
-rnn.plot_loss(plt, show=True)
+    hidden_state = rnn.fit(
+        X, y, epo,
+        num_hidden_nodes=hidden_nodes, return_sequences=True,
+        independent_samples=True, learning_rate=0.05, num_backsteps=np.inf)
 
-predict = rnn.predict(X_seed, time_steps_to_generate=3)
+    rnn.plot_loss(plt, show=True)
 
-# with open("child_book_1_dump.pkl", "wb") as f:
-#     pickle.dump(predict, f)
+else:
 
-for emb in predict:
-    print(word_emb.find_closest(emb, 1))
+    X_seed = np.array([word_emb.get_embeddings("Three little")])
+    rnn = load_model('saved_models/three_little_pigs_large_embedding')
+    predict = rnn.predict(X_seed, time_steps_to_generate=3)
+
+    for emb in predict:
+        print(word_emb.find_closest(emb, 2))
 
 #for learning_rate_curr in learning_rates:
 #    fig, ax = plt.subplots()
