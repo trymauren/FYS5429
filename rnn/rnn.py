@@ -168,7 +168,6 @@ class RNN:
             This line equals the first part of eq. 10.21 in DLB
             To emphasize: the part before the "+" in 10.21 in DLB"""
             prev_grad_h_Cost = d_act @ self.w_hh.T @ grad_h_Cost
-            prev_grad_h_Cost = prev_grad_h_Cost
 
         params = [self.w_hy, self.w_hh, self.w_xh,
                   self.b_hy, self.b_hh]
