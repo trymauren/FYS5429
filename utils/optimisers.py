@@ -51,7 +51,7 @@ class AdaGrad(Optimiser):
 
     def __init__(self):
         super().__init__()
-        self.lambda_ = 1e-7
+        self.delta_ = 1e-7
         self.alphas = None
         self.update = None
 
@@ -63,7 +63,7 @@ class AdaGrad(Optimiser):
 
         for idx, param in enumerate(params):
             self.alphas[idx] += np.square(param)
-            adagrad = param / (np.sqrt(self.lambda_ + self.alphas[idx]))
+            adagrad = param / (self.delta_ + np.sqrt(self.alphas[idx]))
             self.update[idx] = self.learning_rate * adagrad
         return self.update
 
@@ -72,7 +72,7 @@ class RMSProp(Optimiser):
 
     def __init__(self):
         super().__init__()
-        self.lambda_ = 1e-6
+        self.delta_ = 1e-6
         self.update = None
         self.alphas = None
 
@@ -89,7 +89,7 @@ class RMSProp(Optimiser):
                                  + (1 - decay_rate)
                                  * np.square(param)
                                 )
-            rmsprop = param / np.sqrt(self.lambda_ + self.alphas[idx])
+            rmsprop = param / (self.delta_ + np.sqrt(self.alphas[idx]))
             self.update[idx] = self.learning_rate * rmsprop
         return self.update
 
