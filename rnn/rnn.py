@@ -82,6 +82,8 @@ class RNN:
             self,
             x_sample,
             generate=False,
+            nograd=False,
+            output_probabilities=False,
             ) -> None:
         """
         Forward-pass method to be used in fit-method for training the
@@ -99,20 +101,37 @@ class RNN:
         -------------------------------
         None
         """
+        def onehot_to_embedding(vec):
+            return vec
+
+        xs = np.zeros_like(self.xs)
+        hs = np.zeros_like(self.hs)
+        ys = np.zeros_like(self.ys)
+
         for t in range(self.num_hidden_states):
             x_weighted = self.w_xh @ x_sample[t]
             h_weighted = self.w_hh @ self.hs[t-1]
-            a = self.b_hh + x_weighted + h_weighted
-            self.xs[t] = a
+            a = self.b_hh + h_weighted + x_weighted
+            xs[t] = a
             h = self._hidden_activation(a)
-            self.hs[t] = h
-            o = self.b_hy + self.w_hy @ self.hs[t]
-            self.ys[t] = self._output_activation(o)
+            hs[t] = h
+            # why the fuck is squeeze required here?
+            o = self.b_hy + self.w_hy @ h.squeeze()
+            y = self._output_activation(o)
+            ys[t] = y
+
+            if not nograd:
+                self.xs[t] = xs[t]
+                self.hs[t] = hs[t]
+                self.ys[t] = ys[t]
+
             if generate:
                 if t < self.num_hidden_states - 1:
-                    x_sample[t+1] = self.ys[t]
+                    if output_probabilities:
+                        ys[t] = onehot_to_embedding(np.argmax(ys[t]))
+                    x_sample[t+1] = ys[t]
 
-        return self.ys
+        return ys
 
     def _backward(self, num_backsteps=np.inf) -> None:
 
@@ -241,7 +260,7 @@ _
         """
         X = np.array(X, dtype=object)  # object to allow inhomogeneous shape
         y = np.array(y, dtype=object)  # object to allow inhomogeneous shape
-        
+
         if X.ndim != 3:
             raise ValueError("Input data for X has to be of 3 dimensions:\
                              Samples x time steps x features")
@@ -249,7 +268,6 @@ _
             raise ValueError("Input data for y has to be of 3 dimensions:\
                              Samples x time steps x features")
         print("Please wait, training model:")
-        
 
         _, _, num_features = X.shape
         _, _, output_size = y.shape
@@ -277,10 +295,11 @@ _
 
                 y_pred = self._forward(
                     np.array(sample_x, dtype=float),
-                    generate=False
+                    generate=False,
+                    nograd=False,
                 )
 
-                self._loss(np.array(sample_y, dtype=float), self.ys, e)
+                self._loss(np.array(sample_y, dtype=float), y_pred, e)
 
                 self._backward(num_backsteps=num_backsteps)
 
@@ -326,13 +345,13 @@ _
         self._init_states()
         # X = np.zeros((time_steps_to_generate, len(x_seed)))
         # X[0] = x_seed
-        _,_,vec_length = X.shape
+        _, _, vec_length = X.shape
         X_gen = np.zeros((time_steps_to_generate, vec_length))
         X_gen[0] = X[-1][-1]
-        for x in X[:-1]:
+        for x in X[:-1]:  # seeding the generation
             self._forward(np.array(x, dtype=float))
-        self._forward(np.array(X_gen, dtype=float), generate=True)
-        return self.ys
+        ret = self._forward(np.array(X_gen, dtype=float), generate=True, output_probabilities=True)
+        return ret
 
     def _init_weights(self) -> None:
         """
