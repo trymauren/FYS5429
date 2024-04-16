@@ -39,8 +39,8 @@ if train:
 
     rnn = RNN(
         hidden_activation='Tanh()',
-        output_activation='Identity()',
-        loss_function='mse()',
+        output_activation='Softmax()',
+        loss_function='Classification_Logloss()',
         optimiser='AdaGrad()',
         clip_threshold=1,
         name='three_little_pigs_large_embedding',
