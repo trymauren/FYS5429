@@ -1,6 +1,7 @@
 import sys
 import git
 import numpy as np
+import jax.numpy as jnp
 from abc import abstractmethod
 path_to_root = git.Repo('.', search_parent_directories=True).working_dir
 sys.path.append(path_to_root)
@@ -62,8 +63,8 @@ class AdaGrad(Optimiser):
             self.update = [0]*len(params)
 
         for idx, param in enumerate(params):
-            self.alphas[idx] += np.square(param)
-            adagrad = param / (self.delta_ + np.sqrt(self.alphas[idx]))
+            self.alphas[idx] += jnp.square(param)
+            adagrad = param / (self.delta_ + jnp.sqrt(self.alphas[idx]))
             self.update[idx] = self.learning_rate * adagrad
         return self.update
 
@@ -87,14 +88,14 @@ class RMSProp(Optimiser):
             self.alphas[idx] += (
                                  self.decay_rate * param
                                  + (1 - decay_rate)
-                                 * np.square(param)
+                                 * jnp.square(param)
                                 )
-            rmsprop = param / (self.delta_ + np.sqrt(self.alphas[idx]))
+            rmsprop = param / (self.delta_ + jnp.sqrt(self.alphas[idx]))
             self.update[idx] = self.learning_rate * rmsprop
         return self.update
 
 
-def clip_gradient(gradients: np.ndarray, threshold: float) -> np.ndarray:
+def clip_gradient(gradients: jnp.ndarray, threshold: float) -> jnp.ndarray:
     """
     Finds l2-norm of gradient vector and normalizes it.
     TODO Find out if actual delta parameters are the ones to be adjusted 
@@ -109,7 +110,7 @@ def clip_gradient(gradients: np.ndarray, threshold: float) -> np.ndarray:
     #     gradient
 
     for g in gradients:
-        norm_g = np.linalg.norm(g)
+        norm_g = jnp.linalg.norm(g)
         if norm_g > threshold:
             g *= threshold/norm_g
     return gradients

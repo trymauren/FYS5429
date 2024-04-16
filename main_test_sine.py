@@ -1,6 +1,8 @@
 import sys
 import git
 import numpy as np
+import jax.numpy as jnp
+from jax import random
 from rnn.rnn import RNN
 from utils.activations import Relu, Tanh
 import matplotlib.pyplot as plt
@@ -13,15 +15,17 @@ sys.path.append(path_to_root)
 def create_sines(examples=10, seq_length=100):
     X = []
     y = []
+    key = random.key(0)             # 0??
     for _ in range(examples):
-        example_x = np.array(
-            [np.random.uniform(-2, 2)*np.sin(
-                np.linspace(0, 4*np.pi, seq_length+1))]
+        key, subkey = random.split(key)
+        example_x = jnp.array(
+            [random.uniform(subkey, minval=-2, maxval=2)*jnp.sin(
+                jnp.linspace(0, 4*jnp.pi, seq_length+1))]
             ).T
         X.append(example_x[0:-1])
         y.append(example_x[1:])
 
-    return np.array(X), np.array(y)
+    return jnp.array(X), jnp.array(y)
 
 
 # Sine creation
@@ -56,7 +60,7 @@ for sine in X:
 plt.savefig(f'Sine_training_data | size = {examples}')
 
 X_val, y_val = create_sines(examples=1, seq_length=seq_length)
-X_seed = np.array([X_val[0][:seed_length]])
+X_seed = jnp.array([X_val[0][:seed_length]])
 
 
 for learning_rate_curr in learning_rates:
@@ -91,7 +95,7 @@ for learning_rate_curr in learning_rates:
         predict = rnn.predict(X_seed,
                               time_steps_to_generate=time_steps_to_predict)
 
-        plot_line = np.concatenate((X_seed[0], predict))
+        plot_line = jnp.concatenate((X_seed[0], predict))
         ax_pred.plot(plot_line - (i+1)*offset,
                      label=str(rnn._optimiser.__class__.__name__))
         ax_pred.legend()

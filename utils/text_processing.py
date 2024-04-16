@@ -1,8 +1,9 @@
 import numpy as np
+import jax.numpy as jnp
 import spacy
 
 
-def read_file(filename : str) -> np.ndarray:
+def read_file(filename : str) -> jnp.ndarray:
     """
     Parses the given file into a numpy array containing one long string
     up to 100 000 charcters long, the max length is set to be within
@@ -39,7 +40,7 @@ class WORD_EMBEDDING():
         import en_core_web_lg
         self.nlp = en_core_web_lg.load()
 
-    def get_embeddings(self, text: str) -> np.ndarray:
+    def get_embeddings(self, text: str) -> jnp.ndarray:
         """
         Translates the given string into word embeddings/vector by tokenizing
         the string and then translating the tokens into word embeddings
@@ -52,7 +53,7 @@ class WORD_EMBEDDING():
 
         Returns:
         --------------------------
-        np.ndarray:
+        jnp.ndarray:
         - numpy array of word embeddings/1d vectors representing
           each token as a numerical vector
         """
@@ -60,13 +61,13 @@ class WORD_EMBEDDING():
         doc = self.nlp(text)
         for token in doc:
             embeddings.append(token.vector)
-        return np.array(embeddings)
+        return jnp.array(embeddings)
 
-    #def get_similarity(self, embedding1: np.ndarray, embedding2: np.ndarray) \
+    #def get_similarity(self, embedding1: jnp.ndarray, embedding2: jnp.ndarray) \
     #    -> float:
     #    return embedding1.similarity(embedding2)
     
-    def find_closest(self, embedding: np.ndarray, number: int) -> np.ndarray:
+    def find_closest(self, embedding: jnp.ndarray, number: int) -> jnp.ndarray:
         """
         Finds the words/tokens in the word embedding dataset that's 
         closest to the passed word embedding in the vector space 
@@ -74,7 +75,7 @@ class WORD_EMBEDDING():
 
         Parameters:
         ---------------------------
-        embedding : np.ndarray
+        embedding : jnp.ndarray
         - A 1d word embedding vector of length 300
         
         number : int
@@ -83,18 +84,18 @@ class WORD_EMBEDDING():
         
         Returns:
         ---------------------------
-        np.ndarray:
+        jnp.ndarray:
         - numpy array containing the n closest words the the given word
           embedding
         """
         most_similar = self.nlp.vocab.vectors.most_similar(
-                                                        np.array([embedding]), 
+                                                        jnp.array([embedding]), 
                                                         n=number)
         keys = most_similar[0][0]
         nearest_words = []
         for key in keys: 
             nearest_words.append(self.nlp.vocab.strings[key])
-        return np.array(nearest_words)
+        return jnp.array(nearest_words)
     
     def translate_and_shift(self, data: str):
         """
@@ -109,10 +110,10 @@ class WORD_EMBEDDING():
 
         Returns:
         ---------------------------
-            x : np.ndarray
+            x : jnp.ndarray
             - text data translated into embeddings, covers 0->(len(X)-1) of X
 
-            y : np.ndarray
+            y : jnp.ndarray
             - text data translated into embeddings, covers 1->len(X) of X, acts
               as validation set for x
         """

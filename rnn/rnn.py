@@ -5,6 +5,9 @@ import os
 from typing import Dict
 import git
 import numpy as np
+import jax.numpy as jnp
+import jax.random as random
+from jax import grad
 from collections.abc import Callable
 import yaml
 from utils.activations import Relu, Tanh, Identity, Softmax
@@ -33,12 +36,13 @@ class RNN:
             optimiser: Callable = None,
             name: str = 'rnn',
             config: Dict | Path | str = 'default',
-            seed: int = 24,
+            # seed: int = 24,
             clip_threshold: float = 5,
             **optimiser_params,
             ) -> None:
 
-        np.random.seed(seed)
+        # random.seed(seed)
+
 
         # Setting activation functions, loss function and optimiser
         if not hidden_activation:
@@ -104,49 +108,65 @@ class RNN:
         def onehot_to_embedding(vec):
             return vec
 
-        xs = np.zeros_like(self.xs)
-        hs = np.zeros_like(self.hs)
-        ys = np.zeros_like(self.ys)
+        xs = jnp.zeros_like(self.xs)
+        hs = jnp.zeros_like(self.hs)
+        ys = jnp.zeros_like(self.ys)
 
         for t in range(self.num_hidden_states):
             x_weighted = self.w_xh @ x_sample[t]
             h_weighted = self.w_hh @ self.hs[t-1]
             a = self.b_hh + h_weighted + x_weighted
-            xs[t] = a
+            # Below two lines are equivalent. First is NumPy, second is JAX
+            # xs[t] = a
+            # print(xs.shape, a.shape)
+            # print(xs.at[t])
+            xs = xs.at[t].set(a[0])
             h = self._hidden_activation(a)
-            hs[t] = h
+            # hs[t] = h
+            hs = hs.at[t].set(h[0])
             # why the fuck is squeeze required here?
             o = self.b_hy + self.w_hy @ h.squeeze()
             y = self._output_activation(o)
-            ys[t] = y
+            # ys[t] = y
+            ys = ys.at[t].set(y[0])
 
             if not nograd:
-                self.xs[t] = xs[t]
-                self.hs[t] = hs[t]
-                self.ys[t] = ys[t]
+                # self.xs[t] = xs[t]
+                # self.hs[t] = hs[t]
+                # self.ys[t] = ys[t]
+                self.xs = self.xs.at[t].set(xs[t])
+                self.hs = self.hs.at[t].set(hs[t])
+                self.ys = self.ys.at[t].set(ys[t])
 
             if generate:
                 if t < self.num_hidden_states - 1:
                     if output_probabilities:
-                        ys[t] = onehot_to_embedding(np.argmax(ys[t]))
-                    x_sample[t+1] = ys[t]
+                        # ys[t] = onehot_to_embedding(jnp.argmax(ys[t]))
+                        ys = ys.at[t].set(
+                            onehot_to_embedding(jnp.argmax(ys[t]))
+                        )
+                    # x_sample[t+1] = ys[t]
+                    x_sample = x_sample.at[t+1].set(ys[t])
 
         return ys
 
-    def _backward(self, num_backsteps=np.inf) -> None:
+    def _backward(self, num_backsteps=jnp.inf) -> None:
 
-        deltas_w_xh = np.zeros_like(self.w_xh, dtype=float)
-        deltas_w_hh = np.zeros_like(self.w_hh, dtype=float)
-        deltas_w_hy = np.zeros_like(self.w_hy, dtype=float)
+        deltas_w_xh = jnp.zeros_like(self.w_xh, dtype=float)
+        deltas_w_hh = jnp.zeros_like(self.w_hh, dtype=float)
+        deltas_w_hy = jnp.zeros_like(self.w_hy, dtype=float)
 
-        deltas_b_hh = np.zeros_like(self.b_hh, dtype=float)
-        deltas_b_hy = np.zeros_like(self.b_hy, dtype=float)
+        deltas_b_hh = jnp.zeros_like(self.b_hh, dtype=float)
+        deltas_b_hy = jnp.zeros_like(self.b_hy, dtype=float)
 
-        prev_grad_h_Cost = np.zeros_like(self.num_hidden_nodes)
+        prev_grad_h_Cost = jnp.zeros_like(self.num_hidden_nodes)
 
         #NOTE: Implemented gradient clipping, however shape error, 
         #      gradient norm is a list of floats, not one number
-        loss_grad = self._loss_function.grad()
+        # loss_grad = self._loss_function.grad()
+        loss_grad = grad(
+            self._loss_function, jnp.subtract(self.y_pred, self.y_true)
+        )
 
         num_backsteps = min(len(self.hs)-1, num_backsteps)
         for t in range(num_backsteps, -1, -1):
@@ -171,7 +191,8 @@ class RNN:
             # print(grad_h_Cost.shape)
             """The following line is to shorten equations. It fetches/
             differentiates the hidden activation function."""
-            d_act = self._hidden_activation.grad(self.hs[t])
+            # d_act = self._hidden_activation.grad(self.hs[t])
+            d_act = grad(self._hidden_activation, self.hs[t])
 
             """ BELOW IS CALCULATION OF GRADIENT W/RESPECT TO WEIGHTS """
 
@@ -201,14 +222,14 @@ class RNN:
             param -= step
 
     def fit(self,
-            X: np.ndarray = None,
-            y: np.ndarray = None,
+            X: jnp.ndarray = None,
+            y: jnp.ndarray = None,
             epochs: int = None,
             num_hidden_nodes: int = 5,
             num_backsteps: int = None,
             return_sequences: bool = False,
             independent_samples: bool = True,
-            ) -> np.ndarray:
+            ) -> jnp.ndarray:
         """
         Method for training the RNN, iteratively runs _forward(), and
         _backwards() to predict values, find loss and adjust weights
@@ -216,14 +237,14 @@ class RNN:
 
         Parameters:
         -------------------------------
-        X : np.array, shape: m x n
+        X : jnp.array, shape: m x n
             - Input sequence, sequence elements may be scalars
               or vectors.
             - m: number of samples
             - n: number of features (for text, this corresponds to number
                                     ´of entries in embedding vector)
 _
-        y : np.array, shape: m x 1
+        y : jnp.array, shape: m x 1
             - Labels
             - m: equal to n in X    (for text, this corresponds to number
                                      of entries in embedding vector)
@@ -255,11 +276,15 @@ _
 
         Returns:
         -------------------------------
-        (np.ndarray, np.ndarray) = (output states, hidden state)
+        (jnp.ndarray, jnp.ndarray) = (output states, hidden state)
 
         """
-        X = np.array(X, dtype=object)  # object to allow inhomogeneous shape
-        y = np.array(y, dtype=object)  # object to allow inhomogeneous shape
+        # Below two lines aren't compatible with JAX
+        # X = jnp.array(X, dtype=object)  # object to allow inhomogeneous shape
+        # y = jnp.array(y, dtype=object)  # object to allow inhomogeneous shape
+
+        X = jnp.array(X)
+        y = jnp.array(y)
 
         if X.ndim != 3:
             raise ValueError("Input data for X has to be of 3 dimensions:\
@@ -278,7 +303,7 @@ _
 
         self._init_weights()
 
-        self.stats['loss'] = np.zeros(epochs)
+        self.stats['loss'] = jnp.zeros(epochs)
 
         for e in tqdm(range(epochs)):
             for sample_x, sample_y in zip(X, y):
@@ -291,15 +316,16 @@ _
                         prev_h = self.hs[-1]
                     self._init_states()
                     if prev_h is not None:
-                        self.hs[-1] = prev_h
+                        # self.hs[-1] = prev_h
+                        self.hs = self.hs.at[-1].set(prev_h)
 
                 y_pred = self._forward(
-                    np.array(sample_x, dtype=float),
+                    jnp.array(sample_x, dtype=float),
                     generate=False,
                     nograd=False,
                 )
 
-                self._loss(np.array(sample_y, dtype=float), y_pred, e)
+                self._loss(jnp.array(sample_y, dtype=float), y_pred, e)
 
                 self._backward(num_backsteps=num_backsteps)
 
@@ -313,28 +339,28 @@ _
 
     def predict(
             self,
-            X: np.ndarray,
+            X: jnp.ndarray,
             time_steps_to_generate: int = 1,
-            ) -> np.ndarray:
+            ) -> jnp.ndarray:
         """
         Predicts the next value in a sequence of given inputs to the RNN
         network
 
         Parameters:
         -------------------------------
-        x_seed : np.array
+        x_seed : jnp.array
         - An X-sample to seed generation of samples
 
-        h_seed : np.array
+        h_seed : jnp.array
         - Hidden state value to seed generation of samples
 
         Returns:
         -------------------------------
-        np.ndarray
+        jnp.ndarray
         - Generated next samples
         """
         # if h_seed is None:
-        #     self.hs[-1] = np.zeros_like(self.hs[-1])
+        #     self.hs[-1] = jnp.zeros_like(self.hs[-1])
         # else:
         #     self.hs[-1] = h_seed
         if X.ndim != 3:
@@ -343,14 +369,18 @@ _
 
         self.num_hidden_states = time_steps_to_generate
         self._init_states()
-        # X = np.zeros((time_steps_to_generate, len(x_seed)))
+        # X = jnp.zeros((time_steps_to_generate, len(x_seed)))
         # X[0] = x_seed
         _, _, vec_length = X.shape
-        X_gen = np.zeros((time_steps_to_generate, vec_length))
-        X_gen[0] = X[-1][-1]
+        X_gen = jnp.zeros((time_steps_to_generate, vec_length))
+        # X_gen[0] = X[-1][-1]
+        X_gen = X_gen.at[0].set(X[-1][-1])
         for x in X[:-1]:  # seeding the generation
-            self._forward(np.array(x, dtype=float))
-        ret = self._forward(np.array(X_gen, dtype=float), generate=True, output_probabilities=True)
+            self._forward(jnp.array(x, dtype=float))
+        ret = self._forward(
+            jnp.array(X_gen, dtype=float), generate=True,
+            output_probabilities=True
+        )
         return ret
 
     def _init_weights(self) -> None:
@@ -364,17 +394,29 @@ _
         -------------------------------
         None
         """
-        self.w_xh = np.random.uniform(
-            -0.3, 0.3, size=(self.num_hidden_nodes, self.num_features))
-        self.w_hh = np.random.uniform(
-            -0.3, 0.3, size=(self.num_hidden_nodes, self.num_hidden_nodes))
-        self.w_hy = np.random.uniform(
-            -0.3, 0.3, size=(self.output_size, self.num_hidden_nodes))
-
-        self.b_hh = np.random.uniform(
-            -0.3, 0.3, size=(1, self.num_hidden_nodes))
-        self.b_hy = np.random.uniform(
-            -0.3, 0.3, size=(1, self.output_size))
+        key = random.PRNGKey(1)         # 0??
+        self.w_xh = random.uniform(
+            key, minval=-0.3, maxval=0.3,
+            shape=(self.num_hidden_nodes, self.num_features)
+        )
+        key, subkey = random.split(key)
+        self.w_hh = random.uniform(
+            subkey, minval=-0.3, maxval=0.3,
+            shape=(self.num_hidden_nodes, self.num_hidden_nodes)
+        )
+        key, subkey = random.split(key)
+        self.w_hy = random.uniform(
+            subkey, minval=-0.3, maxval=0.3,
+            shape=(self.output_size, self.num_hidden_nodes)
+        )
+        key, subkey = random.split(key)
+        self.b_hh = random.uniform(
+            subkey, minval=-0.3, maxval=0.3, shape=(1, self.num_hidden_nodes)
+        )
+        key, subkey = random.split(key)
+        self.b_hy = random.uniform(
+            subkey, minval=-0.3, maxval=0.3, shape=(1, self.output_size)
+        )
 
     def _init_states(self) -> None:
         """
@@ -387,13 +429,16 @@ _
         -------------------------------
         None
         """
-        self.hs = np.zeros((self.num_hidden_states, self.num_hidden_nodes))
-        self.xs = np.zeros((self.num_hidden_states, self.num_hidden_nodes))
-        self.ys = np.zeros((self.num_hidden_states, self.output_size))
+        self.hs = jnp.zeros((self.num_hidden_states, self.num_hidden_nodes))
+        self.xs = jnp.zeros((self.num_hidden_states, self.num_hidden_nodes))
+        self.ys = jnp.zeros((self.num_hidden_states, self.output_size))
 
     def _loss(self, y_true, y_pred, epoch):
         loss = self._loss_function(y_true, y_pred)
-        self.stats['loss'][epoch] += np.mean(loss)
+        # self.stats['loss'][epoch] += np.mean(loss)
+        self.stats['loss'] = self.stats['loss'].at[epoch].set(
+            self.stats['loss'][epoch] + jnp.mean(loss)
+        )
 
     def plot_loss(self, plt, figax=None, savepath=None, show=False):
         # Some config stuff

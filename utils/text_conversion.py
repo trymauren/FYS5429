@@ -1,17 +1,18 @@
 import numpy as np
+import jax.numpy as jnp
 
-def convert_txt_int(self, text) -> np.ndarray:
+def convert_txt_int(self, text) -> jnp.ndarray:
     with open(text, "r") as text:
-       ascii_list = np.array(list(text))
+       ascii_list = jnp.array(list(text))
 
-    int_list = np.array()
+    int_list = jnp.array()
     for ascii in ascii_list:
         int_list.append(_ascii_to_int(ascii))
     
     return int_list
 
 def convert_int_txt(self,unicode_list):
-    ascii_list = np.array()
+    ascii_list = jnp.array()
     for unicode_int in unicode_list:
         ascii_list.append(_int_to_ascii(unicode_int))
     
