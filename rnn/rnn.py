@@ -101,8 +101,9 @@ class RNN:
         -------------------------------
         None
         """
-        def onehot_to_embedding(vec):
-            return vec
+        def onehot_to_embedding(index):
+            embedding = self.vocab[index]
+            return embedding
 
         xs = np.zeros_like(self.xs)
         hs = np.zeros_like(self.hs)
@@ -258,6 +259,7 @@ _
         (np.ndarray, np.ndarray) = (output states, hidden state)
 
         """
+        self.vocab = text_proc.create_vocabulary(X)
         X = np.array(X, dtype=object)  # object to allow inhomogeneous shape
         y = np.array(y, dtype=object)  # object to allow inhomogeneous shape
 

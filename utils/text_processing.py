@@ -27,6 +27,12 @@ def read_file(filename : str) -> np.ndarray:
                              characters!")
     return text
 
+def create_vocabulary(word_embeddings : np.ndarray) -> dict:
+    unique_embeddings = np.unique(word_embeddings)
+    vocabulary = dict(zip(range(len(unique_embeddings)), unique_embeddings))
+    return vocabulary
+
+
 
 
 class WORD_EMBEDDING():
@@ -65,7 +71,7 @@ class WORD_EMBEDDING():
     #def get_similarity(self, embedding1: np.ndarray, embedding2: np.ndarray) \
     #    -> float:
     #    return embedding1.similarity(embedding2)
-    
+
     def find_closest(self, embedding: np.ndarray, number: int) -> np.ndarray:
         """
         Finds the words/tokens in the word embedding dataset that's 
