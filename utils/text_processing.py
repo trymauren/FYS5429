@@ -28,11 +28,21 @@ def read_file(filename : str) -> np.ndarray:
     return text
 
 def create_vocabulary(word_embeddings : np.ndarray) -> dict:
-    unique_embeddings = np.unique(word_embeddings)
+    unique_embeddings = np.unique(word_embeddings[0], axis=0)
     vocabulary = dict(zip(range(len(unique_embeddings)), unique_embeddings))
-    return vocabulary
+    inverse_vocabulary = dict(zip(tuple(map(tuple,unique_embeddings)),
+                                  range(len(unique_embeddings))))
+    return vocabulary, inverse_vocabulary
 
-
+def create_labels(X,inverse_vocabulary) -> np.ndarray:
+    y = []
+    for embedding in X[0]:
+        y.append([inverse_vocabulary[tuple(embedding)]])
+    y = np.array(y)
+    one_hot_y = np.zeros((len(y),y.max()+1))
+    for value, i in zip(y, range(len(y))):
+        one_hot_y[i,value] = 1
+    return np.array([one_hot_y])
 
 
 class WORD_EMBEDDING():

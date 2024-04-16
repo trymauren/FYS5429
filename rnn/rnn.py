@@ -9,7 +9,7 @@ from collections.abc import Callable
 import yaml
 from utils.activations import Relu, Tanh, Identity, Softmax
 from utils.loss_functions import Mean_Square_Loss as mse
-from utils.loss_functions import Classification_Logloss as ce
+from utils.loss_functions import Classification_Logloss
 from utils import optimisers
 from utils.optimisers import SGD, SGD_momentum, AdaGrad, RMSProp
 from utils import read_load_model
@@ -259,10 +259,11 @@ _
         (np.ndarray, np.ndarray) = (output states, hidden state)
 
         """
-        self.vocab = text_proc.create_vocabulary(X)
+        self.vocab, self.inverse_vocab = text_proc.create_vocabulary(X)
         X = np.array(X, dtype=object)  # object to allow inhomogeneous shape
-        y = np.array(y, dtype=object)  # object to allow inhomogeneous shape
-
+        #y = np.array(y, dtype=object)  # object to allow inhomogeneous shape
+        y = text_proc.create_labels(X, self.inverse_vocab)
+        print(y.shape)
         if X.ndim != 3:
             raise ValueError("Input data for X has to be of 3 dimensions:\
                              Samples x time steps x features")

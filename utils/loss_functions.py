@@ -35,6 +35,7 @@ class Mean_Square_Loss(LossFunction):
                 * np.array([np.subtract(self.y_pred, self.y_true)]).T
                 / len(self.y_pred))
         self.loss = None
+        print(grad.shape)
         return grad
 
 
@@ -48,11 +49,12 @@ class Classification_Logloss(LossFunction):
 
     def eval(self, y_true, y_pred, nograd):
         y_pred += LOG_CONST  # to avoid log(0) calculations
-        propabilities = np.exp(y_pred)/np.sum(np.exp(y_pred))
+        probabilities = np.exp(y_pred)/np.sum(np.exp(y_pred))
         if not nograd:
             self.y_pred = y_pred
             self.y_true = y_true
-            self.probabilities = propabilities
+            self.probabilities = probabilities
+        print((-np.sum(y_true*np.log(probabilities))).shape)
         return -np.sum(y_true*np.log(probabilities))
 
     def grad(self):
