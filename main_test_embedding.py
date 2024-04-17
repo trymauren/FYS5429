@@ -25,15 +25,14 @@ word_emb = WORD_EMBEDDING()
 
 text_data = text_proc.read_file("data/three_little_pigs.txt")
 
-X,y = np.array(word_emb.translate_and_shift(text_data))
-print(X.shape)
+X, y = np.array(word_emb.translate_and_shift(text_data))
 X = np.array([X])
 y = np.array([y])
 
-train = True
+train = False
 if train:
 
-    epo = 100
+    epo = 1000
     hidden_nodes = 50
     # learning_rates = [0.001, 0.003, 0.005, 0.01]
 
@@ -44,24 +43,23 @@ if train:
         optimiser='AdaGrad()',
         clip_threshold=1,
         name='three_little_pigs_large_embedding',
-        learning_rate=0.05,
+        learning_rate=0.005,
         )
 
     hidden_state = rnn.fit(
         X, y, epo,
         num_hidden_nodes=hidden_nodes, return_sequences=True,
-        independent_samples=True, num_backsteps=np.inf)
-
+        independent_samples=True, num_backsteps=30)
     rnn.plot_loss(plt, show=True)
 
 else:
 
-    X_seed = np.array([word_emb.get_embeddings("Three")])
+    X_seed = np.array([word_emb.get_embeddings("Three little")])
     rnn = load_model('saved_models/three_little_pigs_large_embedding')
     predict = rnn.predict(X_seed, time_steps_to_generate=3)
-
-    for emb in predict:
-        print(word_emb.find_closest(emb, 2))
+    print(predict)
+    # for emb in predict:
+    #     print(word_emb.find_closest(emb, 2))
 
 #for learning_rate_curr in learning_rates:
 #    fig, ax = plt.subplots()
