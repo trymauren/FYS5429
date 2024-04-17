@@ -32,10 +32,11 @@ class Mean_Square_Loss(LossFunction):
 
     def grad(self):
         grad = (2
-                * np.array([np.subtract(self.y_pred, self.y_true)]).T
+                * np.subtract(self.y_pred, self.y_true)
                 / len(self.y_pred))
         self.loss = None
-        print(grad.shape)
+        if grad.ndim == self.y_pred.ndim:
+            grad = np.expand_dims(grad, axis=grad.ndim)
         return grad
 
 
@@ -49,17 +50,20 @@ class Classification_Logloss(LossFunction):
 
     def eval(self, y_true, y_pred, nograd):
         y_pred += LOG_CONST  # to avoid log(0) calculations
-        probabilities = np.exp(y_pred)/np.sum(np.exp(y_pred))
+        # probabilities = np.exp(y_pred)/np.sum(np.exp(y_pred))
+        probabilities = y_pred
         if not nograd:
             self.y_pred = y_pred
             self.y_true = y_true
             self.probabilities = probabilities
-        print((-np.sum(y_true*np.log(probabilities))).shape)
-        return -np.sum(y_true*np.log(probabilities))
+
+        return -np.sum(y_true*np.log(probabilities), axis=0)
 
     def grad(self):
         probabilities = np.copy(self.probabilities)
         # See deep learning book, 10.18 for
         # explanation of the following line.
-        probabilities -= self.y_true
-        return probabilities.T
+        grad = probabilities - self.y_true
+        if grad.ndim == self.y_true.ndim:
+            grad = np.expand_dims(grad, axis=grad.ndim)
+        return grad
