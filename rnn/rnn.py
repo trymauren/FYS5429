@@ -117,21 +117,21 @@ class RNN:
             h = self._hidden_activation(a)
             hs[t] = h
             # why the fuck is squeeze required here?
-            o = self.b_hy + self.w_hy @ h.squeeze()
+            o = self.b_hy + self.w_hy @ hs[t]
             y = self._output_activation(o)
-            ys[t] = y
 
+            ys[t] = y
             if not nograd:
                 self.xs[t] = xs[t]
                 self.hs[t] = hs[t]
                 self.ys[t] = ys[t]
 
             if generate:
+                if output_probabilities:
+                    print(np.sum(ys[t]))
+                    ys[t] = onehot_to_embedding(np.argmax(ys[t]))
                 if t < self.num_hidden_states - 1:
-                    if output_probabilities:
-                        ys[t] = onehot_to_embedding(np.argmax(ys[t]))
                     x_sample[t+1] = ys[t]
-
         return ys
 
     def _backward(self, num_backsteps=np.inf) -> None:
@@ -150,10 +150,11 @@ class RNN:
         loss_grad = self._loss_function.grad()
 
         num_backsteps = min(len(self.hs)-1, num_backsteps)
+
         for t in range(num_backsteps, -1, -1):
 
             """ BELOW IS CALCULATION OF GRADIENTS W/RESPECT TO HIDDEN_STATES """
-            grad_o_Cost_t = loss_grad[:, t]
+            grad_o_Cost_t = loss_grad[t]
             # grad_h_Cost = optimisers.clip_gradient(grad_h_Cost, self.clip_threshold)
             """A h_state's gradient update are both influenced by the
             preceding h_state at time t+1, as well as the output at
@@ -175,9 +176,12 @@ class RNN:
             d_act = self._hidden_activation.grad(self.hs[t])
 
             """ BELOW IS CALCULATION OF GRADIENT W/RESPECT TO WEIGHTS """
-
+            # print(np.array([self.hs[t]]).shape)
+            # print(grad_o_Cost_t.shape)
+            # exit()
             """Cumulate the error."""
-            deltas_w_hy += self.hs[t].T * grad_o_Cost_t  # 10.24 in DLB
+            # print(grad_o_Cost_t * self.hs[t] == grad_o_Cost_t @ np.array([self.hs[t]]))
+            deltas_w_hy += grad_o_Cost_t * self.hs[t]  # 10.24 in DLB
             deltas_w_hh += d_act @ self.hs[t-1] * grad_h_Cost  # 10.26 in DLB
             deltas_w_xh += d_act @ self.xs[t] * grad_h_Cost  # 10.28 in DLB
             deltas_b_hy += grad_o_Cost_t.T * 1  # 10.22 in DLB
@@ -354,7 +358,8 @@ _
         for x in X[:-1]:  # seeding the generation
             self._forward(np.array(x, dtype=float))
         ret = self._forward(np.array(X_gen, dtype=float), generate=True, output_probabilities=True)
-        return ret
+
+        return [self.inverse_vocab[tuple(emb)] for emb in ret]
 
     def _init_weights(self) -> None:
         """
