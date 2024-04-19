@@ -116,7 +116,6 @@ class RNN:
             xs[t] = a
             h = self._hidden_activation(a)
             hs[t] = h
-            # why the fuck is squeeze required here?
             o = self.b_hy + self.w_hy @ hs[t]
             y = self._output_activation(o)
 
