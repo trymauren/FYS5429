@@ -77,66 +77,70 @@ class RNN_1d_regression(nn.Module):
         return seed_output, generated_data
 
 
-# ------------ Data creation ------------ #
-def create_sines(examples=10, seq_length=20):
-    X, y = [], []
-    for _ in range(examples):
-        example_x = np.sin(np.linspace(0, 4*np.pi, seq_length+1))
-        X.append(example_x[:-1].reshape(-1, 1))  # Reshape for single feature per timestep
-        y.append(example_x[1:].reshape(-1, 1))   # Reshape for single feature per timestep
-    return np.array(X), np.array(y)
+if __name__ == "__main__":
 
+    # ------------ Data creation ------------ #
+    def create_sines(examples=10, seq_length=20):
+        X, y = [], []
+        for _ in range(examples):
+            example_x = np.sin(np.linspace(0, 8*np.pi, seq_length+1))
+            # Reshape for single feature per timestep
+            X.append(example_x[:-1].reshape(-1, 1))
+            y.append(example_x[1:].reshape(-1, 1))
+        return np.array(X), np.array(y)
 
-inputs, targets = create_sines(examples=1, seq_length=20)
-inputs = torch.tensor(inputs, dtype=torch.float32)
-targets = torch.tensor(targets, dtype=torch.float32)  # No squeeze needed
-train_loader = DataLoader(
-    TensorDataset(inputs, targets),
-    batch_size=1,
-    shuffle=False
-    )
+    inputs, targets = create_sines(examples=1, seq_length=200)
+    inputs = torch.tensor(inputs, dtype=torch.float32)
+    targets = torch.tensor(targets, dtype=torch.float32)  # No squeeze needed
+    train_loader = DataLoader(
+        TensorDataset(inputs, targets),
+        batch_size=1,
+        shuffle=False
+        )
 
+    # ------------ Config ------------ #
+    train = True
+    infer = True
+    num_seed_values = 3
+    hidden_size = 10
+    epochs = 300
+    learning_rate = 0.003
 
-# ------------ Config ------------ #
-train = True
-infer = True
-num_seed_values = 3
-hidden_size = 100
-epochs = 1000
-learning_rate = 0.003
+    # ------------ Model definition ------------ #
+    model = RNN_1d_regression(
+        input_size=1,
+        hidden_size=hidden_size,
+        output_size=1
+        )
 
-# ------------ Model definition ------------ #
-model = RNN_1d_regression(input_size=1, hidden_size=hidden_size, output_size=1)
+    # ------------ Train ------------ #
+    if train:
+        model.fit(train_loader, epochs=epochs, lr=learning_rate)
+        with open('./rnn/loss_list.pkl', 'wb') as file:
+            pickle.dump(model.loss_list, file)
+        plt.figure()
+        plt.plot(model.loss_list)
+        plt.title('Loss over epochs')
+        plt.show()
+        torch.save(model.state_dict(), './rnn/torch_sine')
 
+    # ------------ Inference ------------ #
+    if infer:
+        model = RNN_1d_regression(input_size=1, hidden_size=hidden_size, output_size=1)
+        model.load_state_dict(torch.load('./rnn/torch_sine'))
+        # Take the first sample of the training data for seeding
+        seed_data = inputs[0:1]
+        seed_output, generated = model.single_predict(seed_data, 20)
+        concatenated = np.concatenate((seed_output, generated))
+        plt.plot(seed_data[0], label='Should have been')
+        plt.plot(concatenated, label='generated values')
+        plt.axvline(x=num_seed_values, ls='--',
+                    label='seeded to mark, generated after')
+        plt.legend()
 
-# ------------ Train ------------ #
-if train:
-    model.fit(train_loader, epochs=epochs, lr=learning_rate)
-    with open('./rnn/loss_list.pkl', 'wb') as file:
-        pickle.dump(model.loss_list, file)
-    plt.figure()
-    plt.plot(model.loss_list)
-    plt.title('Loss over epochs')
-    plt.show()
-    torch.save(model.state_dict(), './rnn/torch_sine')
-
-
-# ------------ Inference ------------ #
-if infer:
-    model = RNN_1d_regression(input_size=1, hidden_size=hidden_size, output_size=1)
-    model.load_state_dict(torch.load('./rnn/torch_sine'))
-    # Take the first sample of the training data for seeding
-    seed_data = inputs[0:1]
-    seed_output, generated = model.single_predict(seed_data, 20)
-    concatenated = np.concatenate((seed_output, generated))
-    plt.plot(seed_data[0], label='Should have been')
-    plt.plot(concatenated, label='generated values')
-    plt.axvline(x=num_seed_values, ls='--', label='seeded to mark, generated after')
-    plt.legend()
-
-    plt.figure()
-    with open('./rnn/loss_list.pkl', 'rb') as file:
-        data = pickle.load(file)
-    plt.plot(data)
-    plt.title('Loss over epochs')
-    plt.show()
+        plt.figure()
+        with open('./rnn/loss_list.pkl', 'rb') as file:
+            data = pickle.load(file)
+        plt.plot(data)
+        plt.title('Loss over epochs')
+        plt.show()
