@@ -29,7 +29,7 @@ X, y = np.array(word_emb.translate_and_shift(text_data))
 X = np.array([X])
 y = np.array([y])
 
-train = False
+train = True
 if train:
 
     epo = 1000

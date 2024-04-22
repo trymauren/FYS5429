@@ -27,7 +27,7 @@ class RNN_1d_regression(nn.Module):
             hidden_size,
             num_layers=1,
             batch_first=True,
-            nonlinearity='relu')
+            nonlinearity='tanh')
 
         self.fc = nn.Linear(hidden_size, output_size)
 
@@ -42,7 +42,7 @@ class RNN_1d_regression(nn.Module):
     def fit(self, train_loader, epochs=5, lr=0.01):
 
         criterion = nn.MSELoss(reduction='mean')
-        optimizer = optim.Adam(self.parameters(), lr=lr)
+        optimizer = optim.Adagrad(self.parameters(), lr=lr)  # Could use Adam
         self.loss_list = np.zeros(epochs)
 
         for e in tqdm(range(epochs)):
@@ -126,7 +126,11 @@ if __name__ == "__main__":
 
     # ------------ Inference ------------ #
     if infer:
-        model = RNN_1d_regression(input_size=1, hidden_size=hidden_size, output_size=1)
+        model = RNN_1d_regression(
+            input_size=1,
+            hidden_size=hidden_size,
+            output_size=1
+            )
         model.load_state_dict(torch.load('./rnn/torch_sine'))
         # Take the first sample of the training data for seeding
         seed_data = inputs[0:1]
