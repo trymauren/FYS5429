@@ -18,6 +18,7 @@ from utils.read_load_model import load_model
 path_to_root = git.Repo('.', search_parent_directories=True).working_dir
 sys.path.append(path_to_root)
 
+
 class RNN_1d_regression(nn.Module):
 
     def __init__(self, input_size, hidden_size, output_size):
@@ -64,9 +65,9 @@ class RNN_1d_regression(nn.Module):
 
     def single_predict(self, seed_data, timesteps, vocab):
         if torch.backends.mps.is_available():
-            device = torch.device("mps")
+            device = torch.device('cuda')
         else:
-            device = torch.device("cpu")
+            device = torch.device('cpu')
         print("Using device:", device)
 
         self.eval()
@@ -102,9 +103,9 @@ class RNN_1d_regression(nn.Module):
 
 if __name__ == "__main__":
     if torch.backends.mps.is_available():
-        device = torch.device("mps")
+        device = torch.device('gpu')
     else:
-        device = torch.device("cpu")
+        device = torch.device('cpu')
 
     word_emb = WORD_EMBEDDING()
 
@@ -127,9 +128,8 @@ if __name__ == "__main__":
     # ------------ Config ------------ #
     train = True
     infer = True
-    num_seed_values = 3
-    hidden_size = 300
-    epochs = 10000
+    hidden_size = 600
+    epochs = 20000
     learning_rate = 0.003
 
     # ------------ Model definition ------------ #
@@ -158,7 +158,7 @@ if __name__ == "__main__":
             output_size=len(vocab)
             )
         model.load_state_dict(torch.load('./rnn/torch_sine'))
-        # model = model.to(device)
+        model = model.to(device)
         # seed_data = inputs[0:1, 0:2, :]
         seed_data = torch.tensor(word_emb.get_embeddings("Three little")).unsqueeze(0)
         seed_output, generated = model.single_predict(seed_data, 5, vocab)
