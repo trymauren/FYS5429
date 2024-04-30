@@ -1,7 +1,9 @@
 import sys
 import git
+import resource
 import numpy as np
 from rnn.rnn import RNN
+# from lstm.lstm import RNN
 from utils.activations import Relu, Tanh
 import matplotlib.pyplot as plt
 import utils.text_processing as text_proc
@@ -18,6 +20,10 @@ def create_sines(examples=10, seq_length=100):
             [np.random.uniform(-2, 2)*np.sin(
                 np.linspace(0, 4*np.pi, seq_length+1))]
             ).T
+        example_x = np.array(
+            [np.sin(
+                np.linspace(0, 4*np.pi, seq_length+1))]
+            ).T
         X.append(example_x[0:-1])
         y.append(example_x[1:])
 
@@ -25,19 +31,19 @@ def create_sines(examples=10, seq_length=100):
 
 
 # Sine creation
-seq_length = 20
-examples = 100
+seq_length = 40
+examples = 10
 
 # Prediction
-seed_length = 2
+seed_length = 10
 time_steps_to_predict = seq_length - seed_length
 
 # RNN init
-epo = 10
+epo = 1500
 hidden_nodes = 100
-num_backsteps = seq_length
+num_backsteps = 40
 # learning_rates = [0.001,0.003,0.005,0.007,0.009]
-learning_rates = [0.003]
+learning_rates = [0.01]
 # optimisers = ['AdaGrad()', 'SGD()', 'SGD_momentum()','RMSProp()']
 optimisers = ['AdaGrad()']
 
@@ -55,9 +61,22 @@ for sine in X:
     plt.plot(sine)
 plt.savefig(f'Sine_training_data | size = {examples}')
 
+# X = X.reshape(1, 5, 20, 1)
+# y = y.reshape(1, 5, 20, 1)
+# X = X.reshape(1, 20, -1, 1)
+# y = y.reshape(1, 20, -1, 1)
+# X = X.reshape(1, 5, -1, 1)
+# y = y.reshape(1, 5, -1, 1)
+X = X.reshape(1, 1, -1, 1)
+y = y.reshape(1, 1, -1, 1)
+
+# X = np.split(X, 5)
+# y = np.split(y, 5)
+# print(X[0].shape)
+
+
 X_val, y_val = create_sines(examples=1, seq_length=seq_length)
 X_seed = np.array([X_val[0][:seed_length]])
-
 
 for learning_rate_curr in learning_rates:
     print(f'\n\n---------------------\nlearning rate: {learning_rate_curr}')
@@ -82,9 +101,14 @@ for learning_rate_curr in learning_rates:
             )
 
         hidden_state = rnn.fit(
-            X, y, epo,
-            num_hidden_nodes=hidden_nodes, return_sequences=True,
-            num_backsteps=num_backsteps)
+            X,
+            y,
+            epo,
+            num_hidden_nodes=hidden_nodes,
+            return_sequences=True,
+            num_backsteps=num_backsteps,
+            num_forwardsteps=num_backsteps
+        )
 
         rnn.plot_loss(plt, figax=(fig_loss, ax_loss), show=False)
 
@@ -103,3 +127,6 @@ for learning_rate_curr in learning_rates:
 
     fig_loss.savefig(f'Sine_train_loss_{learning_rate_curr}.svg')
     plt.savefig(f'Sine_pred_{learning_rate_curr}.svg')
+
+print('Memory consumption (peak):')
+print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1000000000)

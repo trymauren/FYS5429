@@ -42,10 +42,10 @@ class RNN:
 
         # Setting activation functions, loss function and optimiser
         if not hidden_activation:
-            hidden_activation = Relu()
+            hidden_activation = Tanh()
         self._hidden_activation = eval(hidden_activation)
         if not output_activation:
-            output_activation = Tanh()
+            output_activation = Identity()
         self._output_activation = eval(output_activation)
 
         if not loss_function:
@@ -84,6 +84,8 @@ class RNN:
             generate=False,
             nograd=False,
             output_probabilities=False,
+            num_forwardsteps=0,
+            t_pointer=0,
             ) -> None:
         """
         Forward-pass method to be used in fit-method for training the
@@ -105,36 +107,31 @@ class RNN:
             embedding = self.vocab[index]
             return embedding
 
-        xs = np.zeros_like(self.xs)
-        hs = np.zeros_like(self.hs)
-        ys = np.zeros_like(self.ys)
+        ys = np.zeros((len(x_sample), self.output_size))
 
-        for t in range(self.num_hidden_states):
+        for t in range(len(x_sample)):
             x_weighted = self.w_xh @ x_sample[t]
-            h_weighted = self.w_hh @ self.hs[t-1]
+            # print(self.states[0][1].shape)
+            h_weighted = self.w_hh @ self.states[-1][1]  # 1 is hs
             a = self.b_hh + h_weighted + x_weighted
-            xs[t] = a
             h = self._hidden_activation(a)
-            hs[t] = h
-            o = self.b_hy + self.w_hy @ hs[t]
+            o = self.b_hy + self.w_hy @ h[0]
             y = self._output_activation(o)
-
             ys[t] = y
             if not nograd:
-                self.xs[t] = xs[t]
-                self.hs[t] = hs[t]
-                self.ys[t] = ys[t]
-
+                self.states.append((a, h[0], y))
             if generate:
-                if output_probabilities:
-                    print(np.sum(ys[t]))
-                    ys[t] = onehot_to_embedding(np.argmax(ys[t]))
                 if t < self.num_hidden_states - 1:
-                    x_sample[t+1] = ys[t]
+                    if output_probabilities:
+                        ix = self.probabilities_to_index(ys[t])
+                        x_sample[t+1] = onehot_to_embedding(ix)
+                    else:
+                        x_sample[t+1] = ys[t]
+
         return ys
 
-    def _backward(self, num_backsteps=np.inf) -> None:
-
+    def _backward(self) -> None:
+        debug = True
         deltas_w_xh = np.zeros_like(self.w_xh, dtype=float)
         deltas_w_hh = np.zeros_like(self.w_hh, dtype=float)
         deltas_w_hy = np.zeros_like(self.w_hy, dtype=float)
@@ -144,17 +141,15 @@ class RNN:
 
         prev_grad_h_Cost = np.zeros_like(self.num_hidden_nodes)
 
-        #NOTE: Implemented gradient clipping, however shape error, 
-        #      gradient norm is a list of floats, not one number
         loss_grad = self._loss_function.grad()
+        start_from = min(len(self.states), len(loss_grad))
+        for t in range(start_from-1, -1, -1):
+            if self.states[t][0] is None:
+                break  # reached init state
 
-        num_backsteps = min(len(self.hs)-1, num_backsteps)
-
-        for t in range(num_backsteps, -1, -1):
-
-            """ BELOW IS CALCULATION OF GRADIENTS W/RESPECT TO HIDDEN_STATES """
+            """BELOW IS CALCULATION OF GRADIENTS W/RESPECT TO HIDDEN_STATES"""
             grad_o_Cost_t = loss_grad[t]
-            # grad_h_Cost = optimisers.clip_gradient(grad_h_Cost, self.clip_threshold)
+
             """A h_state's gradient update are both influenced by the
             preceding h_state at time t+1, as well as the output at
             time t. The cost/loss of the current output derivated with
@@ -162,27 +157,18 @@ class RNN:
             line before the "+ sign". After "+" is the gradient through
             previous hidden states and their outputs. This term after
             the "+" sign, is 0 for first step of BPTT.
-
             Eq. 16 in tex-document(see also eq. 15 for first iteration of BPPT)
             Eq. 10.20 in DLB"""
             grad_h_Cost = prev_grad_h_Cost + self.w_hy.T @ grad_o_Cost_t
 
-            # print(prev_grad_h_Cost.shape)
-            # print(self.w_hy.T.shape)
-            # print(grad_h_Cost.shape)
-            """The following line is to shorten equations. It fetches/
-            differentiates the hidden activation function."""
-            d_act = self._hidden_activation.grad(self.hs[t])
+            """The following line differentiates the
+            hidden activation function."""
+            d_act = self._hidden_activation.grad(self.states[t][1])
 
-            """ BELOW IS CALCULATION OF GRADIENT W/RESPECT TO WEIGHTS """
-            # print(np.array([self.hs[t]]).shape)
-            # print(grad_o_Cost_t.shape)
-            # exit()
-            """Cumulate the error."""
-            # print(grad_o_Cost_t * self.hs[t] == grad_o_Cost_t @ np.array([self.hs[t]]))
-            deltas_w_hy += grad_o_Cost_t * self.hs[t]  # 10.24 in DLB
-            deltas_w_hh += d_act @ self.hs[t-1] * grad_h_Cost  # 10.26 in DLB
-            deltas_w_xh += d_act @ self.xs[t] * grad_h_Cost  # 10.28 in DLB
+            """BELOW IS CALCULATION OF GRADIENT W/RESPECT TO WEIGHTS"""
+            deltas_w_hy += grad_o_Cost_t * self.states[t][1]  # 10.24 in DLB
+            deltas_w_hh += d_act @ self.states[t-1][1] * grad_h_Cost  # 10.26 in DLB
+            deltas_w_xh += d_act @ self.states[t][0].T * grad_h_Cost  # 10.28 in DLB
             deltas_b_hy += grad_o_Cost_t.T * 1  # 10.22 in DLB
             deltas_b_hh += d_act @ grad_h_Cost  # 10.22 in DLB
 
@@ -192,27 +178,27 @@ class RNN:
             To emphasize: the part before the "+" in 10.21 in DLB"""
             prev_grad_h_Cost = d_act @ self.w_hh.T @ grad_h_Cost
 
-        params = [self.w_hy, self.w_hh, self.w_xh,
-                  self.b_hy, self.b_hh]
         deltas = [deltas_w_hy, deltas_w_hh, deltas_w_xh,
                   deltas_b_hy, deltas_b_hh]
+
         clipped_deltas = optimisers.clip_gradient(deltas, self.clip_threshold)
-        # steps = self._optimiser(deltas, **self.optimiser_params)
 
         steps = self._optimiser(clipped_deltas, **self.optimiser_params)
 
-        for param, step in zip(params, steps):
-            param -= step
+        return steps
 
     def fit(self,
             X: np.ndarray = None,
             y: np.ndarray = None,
             epochs: int = None,
             num_hidden_nodes: int = 5,
-            num_backsteps: int = None,
+            num_forwardsteps: int = 0,
+            num_backsteps: int = 0,
             return_sequences: bool = False,
-            independent_samples: bool = True,
+            vocab=None,
+            inverse_vocab=None,
             ) -> np.ndarray:
+        #  X.shape should be NUM_SEQUENCES x BATCH_SIZE x SEQ_LENGTH x NUM_FEATURES?
         """
         Method for training the RNN, iteratively runs _forward(), and
         _backwards() to predict values, find loss and adjust weights
@@ -262,21 +248,26 @@ _
         (np.ndarray, np.ndarray) = (output states, hidden state)
 
         """
-        self.vocab, self.inverse_vocab = text_proc.create_vocabulary(X)
-        X = np.array(X, dtype=object)  # object to allow inhomogeneous shape
-        #y = np.array(y, dtype=object)  # object to allow inhomogeneous shape
-        y = text_proc.create_labels(X, self.inverse_vocab)
-        print(y.shape)
-        if X.ndim != 3:
-            raise ValueError("Input data for X has to be of 3 dimensions:\
-                             Samples x time steps x features")
-        if y.ndim != 3:
-            raise ValueError("Input data for y has to be of 3 dimensions:\
-                             Samples x time steps x features")
-        print("Please wait, training model:")
+        self.vocab, self.inverse_vocab = vocab, inverse_vocab
 
-        _, _, num_features = X.shape
-        _, _, output_size = y.shape
+        X = np.array(X, dtype=object)  # object to allow inhomogeneous shape
+        y = np.array(y, dtype=object)  # object to allow inhomogeneous shape
+
+        if X.ndim != 4:
+            raise ValueError('Input (X) must have 4 dimensions:\
+                             Samples x num_batches x time steps x features')
+        if y.ndim != 4:
+            raise ValueError('Output (y) must have 4 dimensions:\
+                             Samples x num_batches x time steps x features')
+
+        _, num_batches, seq_length, num_features = X.shape
+        _, num_batches, seq_length, output_size = y.shape
+
+        if not num_forwardsteps:
+            print('Warning: number of forwarsteps is not specified - \
+                processing the whole sequence. This may use some memory \
+                for long sequences')
+            num_forwardsteps = seq_length
 
         self.output_size = output_size
         self.num_features = num_features
@@ -285,37 +276,78 @@ _
         self._init_weights()
 
         self.stats['loss'] = np.zeros(epochs)
+        debug = False
 
         for e in tqdm(range(epochs)):
+
+            self.e = e
+
             for sample_x, sample_y in zip(X, y):
-                self.num_hidden_states = len(sample_x)
-                if independent_samples:
-                    self._init_states()
-                else:
-                    prev_h = None
-                    if self.hs is not None:
-                        prev_h = self.hs[-1]
-                    self._init_states()
-                    if prev_h is not None:
-                        self.hs[-1] = prev_h
 
-                y_pred = self._forward(
-                    np.array(sample_x, dtype=float),
-                    generate=False,
-                    nograd=False,
-                )
+                sample_x = np.array(sample_x, dtype=float)  # asarray()?
+                sample_y = np.array(sample_y, dtype=float)  # asarray()?
 
-                self._loss(np.array(sample_y, dtype=float), y_pred, e)
+                self.batch_states = [0]*num_batches
 
-                self._backward(num_backsteps=num_backsteps)
+                for batch_ix in range(num_batches):  # OK!
+                    xs_init = None
+                    hs_init = np.full(self.num_hidden_nodes, 0)
+                    ys_init = None
+                    init_states = [(xs_init, hs_init, ys_init)]
+                    self.batch_states[batch_ix] = init_states
 
-        read_load_model.save_model(  # pickle dump the trained estimator
-            self,
-            'saved_models/',
-            self.name
-        )
-        print("Training complete, proceed")
-        return self.ys, self.hs[-1]
+                t_pointer = 0
+
+                while t_pointer < seq_length:
+
+                    batch_steps = [0]*num_batches
+
+                    for batch_ix in range(num_batches):
+                        # print(f'Batch {batch_ix+1} / {num_batches}')
+
+                        # Dispatch the states of the current batch
+                        self.dispatch_state(batch_ix=batch_ix)
+                        pointer_end = t_pointer + num_forwardsteps
+                        pointer_end = min(pointer_end, seq_length)
+
+                        x_batch = sample_x[batch_ix][t_pointer:pointer_end]
+                        y_batch = sample_y[batch_ix][t_pointer:pointer_end]
+
+                        # Dealing with the case when there are fewer steps left
+                        # than num_forwardsteps
+                        num_forwardsteps_local = min(num_forwardsteps,
+                                                     seq_length - t_pointer)
+
+                        y_pred = self._forward(
+                            x_batch, num_forwardsteps=num_forwardsteps_local,
+                        )
+
+                        self._loss(y_batch, y_pred, e)
+
+                        # The following while-loop saves memory.
+                        # Inspired by https://discuss.pytorch.org/t/
+                        # implementing-truncated-backpropagation-through-time
+                        # /15500/4
+                        while len(self.states) > num_backsteps:
+                            del self.states[0]
+
+                        steps = self._backward()
+
+                        batch_steps[batch_ix] = steps
+
+                    t_pointer += num_forwardsteps
+
+                    average_steps = np.mean(np.array(batch_steps, dtype=object), axis=0)
+
+                    params = [self.w_hy, self.w_hh, self.w_xh,
+                              self.b_hy, self.b_hh]
+
+                    for param, step in zip(params, average_steps):
+                        param -= step
+
+        read_load_model.save_model(self, 'saved_models/', self.name)
+        print('Train complete')
+        return self.ys, None
 
     def predict(
             self,
@@ -339,26 +371,44 @@ _
         np.ndarray
         - Generated next samples
         """
-        # if h_seed is None:
-        #     self.hs[-1] = np.zeros_like(self.hs[-1])
-        # else:
-        #     self.hs[-1] = h_seed
-        if X.ndim != 3:
+
+        if X.ndim > 3 or X.ndim < 2:
             raise ValueError("Input data for X has to be of 3 dimensions:\
                              Samples x time steps x features")
+        if X.ndim == 3:
+            X = X[0]  # remove first dim of X
 
-        self.num_hidden_states = time_steps_to_generate
+        _, num_features = X.shape
+        X_gen = np.zeros((time_steps_to_generate, num_features))
+        print(time_steps_to_generate)
+        self.num_hidden_states = len(X)
         self._init_states()
-        # X = np.zeros((time_steps_to_generate, len(x_seed)))
-        # X[0] = x_seed
-        _, _, vec_length = X.shape
-        X_gen = np.zeros((time_steps_to_generate, vec_length))
-        X_gen[0] = X[-1][-1]
-        for x in X[:-1]:  # seeding the generation
-            self._forward(np.array(x, dtype=float))
-        ret = self._forward(np.array(X_gen, dtype=float), generate=True, output_probabilities=True)
 
-        return [self.inverse_vocab[tuple(emb)] for emb in ret]
+        ys = self._forward(np.array(X, dtype=float))
+
+        if self.vocab:
+            last_y_emb = self.vocab[self.probabilities_to_index(ys[-1])]
+            X_gen[0] = last_y_emb
+            # self.num_hidden_states = time_steps_to_generate
+            # last_h = self.states[-1][1]  # hs[-1]
+            # self._init_states()
+            # self.self.states[-1][1] = last_h
+            ys = self._forward(X_gen, generate=True,
+                               output_probabilities=True)
+            return [self.vocab[self.probabilities_to_index(y)] for y in ys]
+
+        else:
+            X_gen[0] = ys[-1]
+            # self.num_hidden_states = time_steps_to_generate
+            # last_h = self.states[-1][1]  # hs[-1]
+            # self._init_states()
+            # self.states[-1][1] = last_h
+            ys = self._forward(X_gen, generate=True,
+                               output_probabilities=False)
+            return ys
+
+    def probabilities_to_index(self, probabilities):
+        return np.random.choice(range(len(probabilities)), p=probabilities)
 
     def _init_weights(self) -> None:
         """
@@ -386,7 +436,6 @@ _
     def _init_states(self) -> None:
         """
         Initialises states and assign them to instance variables.
-
         Parameters:
         -------------------------------
         None
@@ -398,8 +447,22 @@ _
         self.xs = np.zeros((self.num_hidden_states, self.num_hidden_nodes))
         self.ys = np.zeros((self.num_hidden_states, self.output_size))
 
+    def dispatch_state(self, batch_ix) -> None:
+        """
+        'Dispatches' the states of current batch by swapping the
+        reference of self._s variables.
+        Parameters:
+        -------------------------------
+        None
+        Returns:
+        -------------------------------
+        None
+        """
+        self.states = self.batch_states[batch_ix]
+
     def _loss(self, y_true, y_pred, epoch):
         loss = self._loss_function(y_true, y_pred)
+
         self.stats['loss'][epoch] += np.mean(loss)
 
     def plot_loss(self, plt, figax=None, savepath=None, show=False):
