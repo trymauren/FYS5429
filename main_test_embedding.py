@@ -21,19 +21,35 @@ plt.rc('legend', fontsize=MEDIUM_SIZE)    # legend fontsize
 plt.rc('figure', titlesize=BIGGER_SIZE)
 
 
+import tensorflow as tf
+path_to_file = tf.keras.utils.get_file('shakespeare.txt', 'https://storage.googleapis.com/download.tensorflow.org/data/shakespeare.txt')
+# Read, then decode for py2 compat.
+text = open(path_to_file, 'rb').read().decode(encoding='utf-8')
+# length of text is the number of characters in it
+
 word_emb = WORD_EMBEDDING()
 
-text_data = text_proc.read_file("data/three_little_pigs.txt")
-
+text_data = text_proc.read_file(path_to_file)
+# text_data = text_proc.read_file("data/embedding_test.txt")
 X, y = np.array(word_emb.translate_and_shift(text_data))
+# print('X:', X.shape)
+# print('y:', y.shape)
+# text_data = text_data.split('.')
 X = np.array([X])
 y = np.array([y])
+vocab, inverse_vocab = text_proc.create_vocabulary(X)
+y = text_proc.create_labels(X, inverse_vocab)
+X = X.reshape(1, 2, -1, X.shape[-1])
+y = y.reshape(1, 2, -1, y.shape[-1])
+print('X:', X.shape)
+print('y:', y.shape)
 
 train = True
+infer = False
 if train:
 
-    epo = 1000
-    hidden_nodes = 50
+    epo = 10
+    hidden_nodes = 10
     # learning_rates = [0.001, 0.003, 0.005, 0.01]
 
     rnn = RNN(
@@ -41,25 +57,37 @@ if train:
         output_activation='Softmax()',
         loss_function='Classification_Logloss()',
         optimiser='AdaGrad()',
-        clip_threshold=1,
-        name='three_little_pigs_large_embedding',
-        learning_rate=0.005,
+        clip_threshold=np.inf,
+        name='tf_text_test2',
+        learning_rate=0.001,
         )
 
     hidden_state = rnn.fit(
-        X, y, epo,
-        num_hidden_nodes=hidden_nodes, return_sequences=True,
-        independent_samples=True, num_backsteps=30)
+        X,
+        y,
+        epo,
+        num_hidden_nodes=hidden_nodes,
+        return_sequences=True,
+        independent_samples=True,
+        num_forwardsteps=30,
+        num_backsteps=30,
+        vocab=vocab,
+        inverse_vocab=inverse_vocab,
+        )
     rnn.plot_loss(plt, show=True)
 
-else:
+if infer:
 
-    X_seed = np.array([word_emb.get_embeddings("Three little")])
-    rnn = load_model('saved_models/three_little_pigs_large_embedding')
-    predict = rnn.predict(X_seed, time_steps_to_generate=3)
-    print(predict)
-    # for emb in predict:
-    #     print(word_emb.find_closest(emb, 2))
+    X_seed = np.array([word_emb.get_embeddings("What should")])
+    rnn = load_model('saved_models/tf_text_test1')
+    # rnn.plot_loss(plt, show=True)
+    predict = rnn.predict(X_seed, time_steps_to_generate=10)
+    # print(predict)
+    for emb in predict:
+        print(word_emb.find_closest(emb, 1))
+
+print('Memory consumption (peak):')
+print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1000000000)
 
 #for learning_rate_curr in learning_rates:
 #    fig, ax = plt.subplots()
