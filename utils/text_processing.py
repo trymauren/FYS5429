@@ -23,8 +23,9 @@ def read_file(filename : str) -> np.ndarray:
         text = f.read()
         len_chars = sum(len(word) for word in text.strip().split())
         if len_chars > 100000:
-            raise ValueError("Text file can't contain more than 100 000\
-                             characters!")
+            text = text[:50000]
+            # raise ValueError("Text file can't contain more than 100 000\
+            #                  characters!")
     return text
 
 def create_vocabulary(word_embeddings : np.ndarray) -> dict:
