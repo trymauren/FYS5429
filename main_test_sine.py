@@ -126,7 +126,6 @@ for learning_rate_curr in learning_rates:
             y,
             epo,
             num_hidden_nodes=hidden_nodes,
-            return_sequences=True,
             num_backsteps=num_backsteps,
             num_forwardsteps=num_backsteps,
             X_val=X_val_batch,
