@@ -188,7 +188,6 @@ class RNN:
             num_hidden_nodes: int = 5,
             num_forwardsteps: int = 0,
             num_backsteps: int = 0,
-            return_sequences: bool = False,
             vocab=None,
             inverse_vocab=None,
             X_val: np.ndarray = None,

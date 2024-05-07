@@ -68,7 +68,6 @@ if train:
         y,
         epo,
         num_hidden_nodes=hidden_nodes,
-        return_sequences=True,
         num_forwardsteps=30,
         num_backsteps=30,
         vocab=vocab,
