@@ -20,9 +20,27 @@ def create_sines(examples=10, seq_length=100):
             [np.random.uniform(-2, 2)*np.sin(
                 np.linspace(0, 4*np.pi, seq_length+1))]
             ).T
+        # example_x = np.array(
+        #     [np.sin(
+        #         np.linspace(0, 8*np.pi, seq_length+1))]
+        #     ).T
+        X.append(example_x[0:-1])
+        y.append(example_x[1:])
+
+    return np.array(X), np.array(y)
+
+
+def create_cosines(examples=10, seq_length=100):
+    X = []
+    y = []
+    for _ in range(examples):
         example_x = np.array(
-            [np.sin(
+            [np.random.uniform(-2, 2)*np.cos(
                 np.linspace(0, 4*np.pi, seq_length+1))]
+            ).T
+        example_x = np.array(
+            [np.cos(
+                np.linspace(0, 8*np.pi, seq_length+1))]
             ).T
         X.append(example_x[0:-1])
         y.append(example_x[1:])
@@ -31,21 +49,23 @@ def create_sines(examples=10, seq_length=100):
 
 
 # Sine creation
-seq_length = 40
-examples = 10
+seq_length = 30
+examples = 100
 
 # Prediction
 seed_length = 10
 time_steps_to_predict = seq_length - seed_length
 
 # RNN init
-epo = 1500
-hidden_nodes = 100
-num_backsteps = 40
+epo = 2
+hidden_nodes = 40  # < 40 hidden_nodes is not able to capture periodicity
+# for lr=o.oo1, Adagrad, epo=4000, seq_length=30, num_backsteps=30
+num_backsteps = 30
 # learning_rates = [0.001,0.003,0.005,0.007,0.009]
-learning_rates = [0.01]
+learning_rates = [0.001]
 # optimisers = ['AdaGrad()', 'SGD()', 'SGD_momentum()','RMSProp()']
 optimisers = ['AdaGrad()']
+num_batches = 1
 
 # Plotting
 offset = 3
@@ -53,13 +73,13 @@ offset = 3
 X, y = create_sines(examples=examples, seq_length=seq_length)
 
 # Plotting the sine waves that are passed as training data
-plt.title("Randomized sines used for training")
-plt.ylabel("Amplitude(y)")
-plt.xlabel("Time(t)")
+# plt.title("Randomized sines used for training")
+# plt.ylabel("Amplitude(y)")
+# plt.xlabel("Time(t)")
 
-for sine in X:
-    plt.plot(sine)
-plt.savefig(f'Sine_training_data | size = {examples}')
+# for sine in X:
+#     plt.plot(sine)
+# plt.savefig(f'Sine_training_data | size = {examples}')
 
 # X = X.reshape(1, 5, 20, 1)
 # y = y.reshape(1, 5, 20, 1)
@@ -67,16 +87,17 @@ plt.savefig(f'Sine_training_data | size = {examples}')
 # y = y.reshape(1, 20, -1, 1)
 # X = X.reshape(1, 5, -1, 1)
 # y = y.reshape(1, 5, -1, 1)
-X = X.reshape(1, 1, -1, 1)
-y = y.reshape(1, 1, -1, 1)
-
-# X = np.split(X, 5)
-# y = np.split(y, 5)
-# print(X[0].shape)
+X = X.reshape(examples, num_batches, -1, 1)
+y = y.reshape(examples, num_batches, -1, 1)
 
 
 X_val, y_val = create_sines(examples=1, seq_length=seq_length)
+
 X_seed = np.array([X_val[0][:seed_length]])
+
+X_val_batch = X_val.reshape(1, num_batches, -1, 1)
+y_val_batch = y_val.reshape(1, num_batches, -1, 1)
+
 
 for learning_rate_curr in learning_rates:
     print(f'\n\n---------------------\nlearning rate: {learning_rate_curr}')
@@ -107,10 +128,12 @@ for learning_rate_curr in learning_rates:
             num_hidden_nodes=hidden_nodes,
             return_sequences=True,
             num_backsteps=num_backsteps,
-            num_forwardsteps=num_backsteps
+            num_forwardsteps=num_backsteps,
+            X_val=X_val_batch,
+            y_val=y_val_batch,
         )
-
-        rnn.plot_loss(plt, figax=(fig_loss, ax_loss), show=False)
+        s = f'Sine_train_loss_{learning_rate_curr}.svg'
+        rnn.plot_loss(plt, figax=(fig_loss, ax_loss), show=False, val=True)
 
         predict = rnn.predict(X_seed,
                               time_steps_to_generate=time_steps_to_predict)
@@ -118,15 +141,17 @@ for learning_rate_curr in learning_rates:
         plot_line = np.concatenate((X_seed[0], predict))
         ax_pred.plot(plot_line - (i+1)*offset,
                      label=str(rnn._optimiser.__class__.__name__))
-        ax_pred.legend()
 
     ax_pred.plot(X_val[0], label="X val")
     ax_pred.legend()
 
-    ax_loss.set_title(f"Training loss | learning rate: {learning_rate_curr}")
+    # ax_loss.set_title(f"Loss | learning rate: {learning_rate_curr}")
 
-    fig_loss.savefig(f'Sine_train_loss_{learning_rate_curr}.svg')
-    plt.savefig(f'Sine_pred_{learning_rate_curr}.svg')
+    # fig_loss.savefig(f'Sine_train_loss_{learning_rate_curr}.svg')
+    # fig_pred.savefig(f'Sine_pred_{learning_rate_curr}.svg')
+    plt.show()
 
+bytes_usage_peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+gb_usage_peak = round(bytes_usage_peak/1000000000, 3)
 print('Memory consumption (peak):')
-print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1000000000)
+print(gb_usage_peak, 'GB')

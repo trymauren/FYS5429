@@ -1,5 +1,6 @@
 import sys
 import git
+import resource
 import numpy as np
 from rnn.rnn import RNN
 import matplotlib.pyplot as plt
@@ -45,11 +46,11 @@ print('X:', X.shape)
 print('y:', y.shape)
 
 train = True
-infer = False
+infer = True
 if train:
 
-    epo = 10
-    hidden_nodes = 10
+    epo = 1000
+    hidden_nodes = 600
     # learning_rates = [0.001, 0.003, 0.005, 0.01]
 
     rnn = RNN(
@@ -68,7 +69,6 @@ if train:
         epo,
         num_hidden_nodes=hidden_nodes,
         return_sequences=True,
-        independent_samples=True,
         num_forwardsteps=30,
         num_backsteps=30,
         vocab=vocab,
@@ -80,16 +80,19 @@ if infer:
 
     X_seed = np.array([word_emb.get_embeddings("What should")])
     rnn = load_model('saved_models/tf_text_test1')
-    # rnn.plot_loss(plt, show=True)
+    rnn.plot_loss(plt, show=True)
     predict = rnn.predict(X_seed, time_steps_to_generate=10)
-    # print(predict)
     for emb in predict:
         print(word_emb.find_closest(emb, 1))
 
+bytes_usage_peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+gb_usage_peak = round(bytes_usage_peak/1000000000, 3)
 print('Memory consumption (peak):')
-print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1000000000)
+print(gb_usage_peak, 'GB')
 
-#for learning_rate_curr in learning_rates:
+
+
+# for learning_rate_curr in learning_rates:
 #    fig, ax = plt.subplots()
 #    print(f'learning rate: {learning_rate_curr}')
 #    rnn = RNN(
