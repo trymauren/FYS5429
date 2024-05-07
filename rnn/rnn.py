@@ -1,26 +1,22 @@
-from importlib.resources import open_text
-from pathlib import Path
 import sys
 import os
-from typing import Dict
 import git
 import numpy as np
+from tqdm import tqdm
+import matplotlib
+import matplotlib.pyplot as plt
+from pathlib import Path
+from typing import Dict
 from collections.abc import Callable
-import yaml
+from utils import optimisers
+from utils import read_load_model
 from utils.activations import Relu, Tanh, Identity, Softmax
 from utils.loss_functions import Mean_Square_Loss as mse
 from utils.loss_functions import Classification_Logloss
-from utils import optimisers
 from utils.optimisers import SGD, SGD_momentum, AdaGrad, RMSProp
-from utils import read_load_model
-import utils.text_processing as text_proc
-from utils.text_processing import WORD_EMBEDDING
-import matplotlib
-import matplotlib.pyplot as plt
-from tqdm import tqdm
 
-path_to_root = git.Repo('.', search_parent_directories=True).working_dir
-sys.path.append(path_to_root)
+# path_to_root = git.Repo('.', search_parent_directories=True).working_dir
+# sys.path.append(path_to_root)
 
 
 class RNN:
@@ -84,8 +80,6 @@ class RNN:
             generate=False,
             nograd=False,
             output_probabilities=False,
-            num_forwardsteps=0,
-            t_pointer=0,
             ) -> None:
         """
         Forward-pass method to be used in fit-method for training the
@@ -110,23 +104,23 @@ class RNN:
         ys = np.zeros((len(x_sample), self.output_size))
 
         for t in range(len(x_sample)):
+
             x_weighted = self.w_xh @ x_sample[t]
-            # print(self.states[0][1].shape)
-            h_weighted = self.w_hh @ self.states[-1][1]  # 1 is hs
+            h_weighted = self.w_hh @ self.states[-1][1]  # last hidden state
             a = self.b_hh + h_weighted + x_weighted
             h = self._hidden_activation(a)
             o = self.b_hy + self.w_hy @ h[0]
             y = self._output_activation(o)
             ys[t] = y
-            if not nograd:
-                self.states.append((a, h[0], y))
-            if generate:
-                if t < self.num_hidden_states - 1:
-                    if output_probabilities:
-                        ix = self.probabilities_to_index(ys[t])
-                        x_sample[t+1] = onehot_to_embedding(ix)
-                    else:
-                        x_sample[t+1] = ys[t]
+
+            self.states.append((a, h[0], y))
+
+            if generate and t < len(x_sample)-1:
+                if output_probabilities:
+                    ix = self.probabilities_to_index(ys[t])
+                    x_sample[t+1] = onehot_to_embedding(ix)
+                else:
+                    x_sample[t+1] = ys[t]
 
         return ys
 
@@ -178,8 +172,8 @@ class RNN:
             To emphasize: the part before the "+" in 10.21 in DLB"""
             prev_grad_h_Cost = d_act @ self.w_hh.T @ grad_h_Cost
 
-        deltas = [deltas_w_hy, deltas_w_hh, deltas_w_xh,
-                  deltas_b_hy, deltas_b_hh]
+        deltas = [deltas_w_xh, deltas_w_hh, deltas_w_hy,
+                  deltas_b_hh, deltas_b_hy]
 
         clipped_deltas = optimisers.clip_gradient(deltas, self.clip_threshold)
 
@@ -197,8 +191,9 @@ class RNN:
             return_sequences: bool = False,
             vocab=None,
             inverse_vocab=None,
+            X_val: np.ndarray = None,
+            y_val: np.ndarray = None,
             ) -> np.ndarray:
-        #  X.shape should be NUM_SEQUENCES x BATCH_SIZE x SEQ_LENGTH x NUM_FEATURES?
         """
         Method for training the RNN, iteratively runs _forward(), and
         _backwards() to predict values, find loss and adjust weights
@@ -248,20 +243,19 @@ _
         (np.ndarray, np.ndarray) = (output states, hidden state)
 
         """
-        self.vocab, self.inverse_vocab = vocab, inverse_vocab
 
         X = np.array(X, dtype=object)  # object to allow inhomogeneous shape
         y = np.array(y, dtype=object)  # object to allow inhomogeneous shape
 
         if X.ndim != 4:
             raise ValueError('Input (X) must have 4 dimensions:\
-                             Samples x num_batches x time steps x features')
+                             Samples x batches x time steps x features')
         if y.ndim != 4:
             raise ValueError('Output (y) must have 4 dimensions:\
-                             Samples x num_batches x time steps x features')
+                             Samples x batches x time steps x features')
 
-        _, num_batches, seq_length, num_features = X.shape
-        _, num_batches, seq_length, output_size = y.shape
+        self.num_samples, num_batches, seq_length, num_features = X.shape
+        self.num_samples, num_batches, seq_length, output_size = y.shape
 
         if not num_forwardsteps:
             print('Warning: number of forwarsteps is not specified - \
@@ -269,32 +263,31 @@ _
                 for long sequences')
             num_forwardsteps = seq_length
 
+        # Attribution and weight init
         self.output_size = output_size
         self.num_features = num_features
         self.num_hidden_nodes = num_hidden_nodes
-
+        self.num_batches = num_batches
         self._init_weights()
-
+        self.vocab, self.inverse_vocab = vocab, inverse_vocab
         self.stats['loss'] = np.zeros(epochs)
-        debug = False
+        self.val = False
+
+        if X_val is not None and y_val is not None:
+            self.val = True
+            self.stats['val_loss'] = np.zeros(epochs)
+            self.num_samples_val = X_val.shape[0]
 
         for e in tqdm(range(epochs)):
 
             self.e = e
 
-            for sample_x, sample_y in zip(X, y):
+            for idx, (x_sample, y_sample) in enumerate(zip(X, y)):
 
-                sample_x = np.array(sample_x, dtype=float)  # asarray()?
-                sample_y = np.array(sample_y, dtype=float)  # asarray()?
+                x_sample = np.array(x_sample, dtype=float)  # asarray()?
+                y_sample = np.array(y_sample, dtype=float)  # asarray()?
 
-                self.batch_states = [0]*num_batches
-
-                for batch_ix in range(num_batches):  # OK!
-                    xs_init = None
-                    hs_init = np.full(self.num_hidden_nodes, 0)
-                    ys_init = None
-                    init_states = [(xs_init, hs_init, ys_init)]
-                    self.batch_states[batch_ix] = init_states
+                self._init_states()
 
                 t_pointer = 0
 
@@ -306,21 +299,29 @@ _
                         # print(f'Batch {batch_ix+1} / {num_batches}')
 
                         # Dispatch the states of the current batch
-                        self.dispatch_state(batch_ix=batch_ix)
+                        self._dispatch_state(batch_ix=batch_ix)
+                        assert self.current_batch >= 0
+
                         pointer_end = t_pointer + num_forwardsteps
                         pointer_end = min(pointer_end, seq_length)
 
-                        x_batch = sample_x[batch_ix][t_pointer:pointer_end]
-                        y_batch = sample_y[batch_ix][t_pointer:pointer_end]
+                        x_batch = x_sample[batch_ix][t_pointer:pointer_end]
+                        y_batch = y_sample[batch_ix][t_pointer:pointer_end]
+
+                        if self.val:
+                            # fewer val-samples than train_samples
+                            if len(X_val) > idx:
+                                x_sample_val = X_val[idx]
+                                y_sample_val = y_val[idx]
+                                x_batch_val = x_sample_val[batch_ix][t_pointer:pointer_end]
+                                y_batch_val = y_sample_val[batch_ix][t_pointer:pointer_end]
 
                         # Dealing with the case when there are fewer steps left
                         # than num_forwardsteps
-                        num_forwardsteps_local = min(num_forwardsteps,
-                                                     seq_length - t_pointer)
+                        # num_forwardsteps_local = min(num_forwardsteps,
+                        #                              seq_length - t_pointer)
 
-                        y_pred = self._forward(
-                            x_batch, num_forwardsteps=num_forwardsteps_local,
-                        )
+                        y_pred = self._forward(x_batch)
 
                         self._loss(y_batch, y_pred, e)
 
@@ -335,19 +336,33 @@ _
 
                         batch_steps[batch_ix] = steps
 
+                        if self.val:
+                            self._dispatch_state(batch_ix=batch_ix,
+                                                 val=self.val)
+                            y_val_pred = self._forward(x_batch_val,
+                                                       nograd=True)
+                            self._loss(y_batch_val, y_val_pred, e,
+                                       val=self.val)
+                            assert self.current_batch == -1
+
                     t_pointer += num_forwardsteps
 
-                    average_steps = np.mean(np.array(batch_steps, dtype=object), axis=0)
+                    average_steps = np.mean(
+                        np.array(batch_steps, dtype=object), axis=0)
 
-                    params = [self.w_hy, self.w_hh, self.w_xh,
-                              self.b_hy, self.b_hh]
-
-                    for param, step in zip(params, average_steps):
+                    for param, step in zip(self.parameters, average_steps):
                         param -= step
 
         read_load_model.save_model(self, 'saved_models/', self.name)
+
+        self.stats['loss'] /= self.num_samples
+
+        if self.val:
+            self.stats['val_loss'] /= self.num_samples_val
+
         print('Train complete')
-        return self.ys, None
+
+        return self.ys, self.states[-1][1]
 
     def predict(
             self,
@@ -360,49 +375,41 @@ _
 
         Parameters:
         -------------------------------
-        x_seed : np.array
+        X : np.array
         - An X-sample to seed generation of samples
-
-        h_seed : np.array
-        - Hidden state value to seed generation of samples
 
         Returns:
         -------------------------------
         np.ndarray
-        - Generated next samples
+        - Generated sequence
         """
 
         if X.ndim > 3 or X.ndim < 2:
             raise ValueError("Input data for X has to be of 3 dimensions:\
                              Samples x time steps x features")
         if X.ndim == 3:
-            X = X[0]  # remove first dim of X
+            X = X[0]
+            # remove first dim of X (temporarily). Could implement
+            # prediction of more than 1 example at a time.
 
         _, num_features = X.shape
         X_gen = np.zeros((time_steps_to_generate, num_features))
-        print(time_steps_to_generate)
-        self.num_hidden_states = len(X)
-        self._init_states()
+        xs_init = None
+        hs_init = np.full(self.num_hidden_nodes, 0)
+        ys_init = None
+        self.states = [(xs_init, hs_init, ys_init)]
 
         ys = self._forward(np.array(X, dtype=float))
 
         if self.vocab:
             last_y_emb = self.vocab[self.probabilities_to_index(ys[-1])]
             X_gen[0] = last_y_emb
-            # self.num_hidden_states = time_steps_to_generate
-            # last_h = self.states[-1][1]  # hs[-1]
-            # self._init_states()
-            # self.self.states[-1][1] = last_h
             ys = self._forward(X_gen, generate=True,
                                output_probabilities=True)
             return [self.vocab[self.probabilities_to_index(y)] for y in ys]
 
         else:
             X_gen[0] = ys[-1]
-            # self.num_hidden_states = time_steps_to_generate
-            # last_h = self.states[-1][1]  # hs[-1]
-            # self._init_states()
-            # self.states[-1][1] = last_h
             ys = self._forward(X_gen, generate=True,
                                output_probabilities=False)
             return ys
@@ -433,24 +440,21 @@ _
         self.b_hy = np.random.uniform(
             -0.3, 0.3, size=(1, self.output_size))
 
-    def _init_states(self) -> None:
-        """
-        Initialises states and assign them to instance variables.
-        Parameters:
-        -------------------------------
-        None
-        Returns:
-        -------------------------------
-        None
-        """
-        self.hs = np.zeros((self.num_hidden_states, self.num_hidden_nodes))
-        self.xs = np.zeros((self.num_hidden_states, self.num_hidden_nodes))
-        self.ys = np.zeros((self.num_hidden_states, self.output_size))
+        self.parameters = [self.w_xh, self.w_hh, self.w_hy,
+                           self.b_hh, self.b_hy]
 
-    def dispatch_state(self, batch_ix) -> None:
+        total = sum(np.size(param) for param in self.parameters)
+        self.stats['parameter_count'] = total
+        self.stats['parameters'] = {'w_xh:', self.w_xh.shape,
+                                    'w_hh:', self.w_xh.shape,
+                                    'w_hy:', self.w_xh.shape,
+                                    'b_hh:', self.w_xh.shape,
+                                    'b_hy:', self.w_xh.shape}
+
+    def _dispatch_state(self, batch_ix, val=False) -> None:
         """
-        'Dispatches' the states of current batch by swapping the
-        reference of self._s variables.
+        'Dispatches' the states of current batch by swapping out what
+        self.states references.
         Parameters:
         -------------------------------
         None
@@ -459,13 +463,41 @@ _
         None
         """
         self.states = self.batch_states[batch_ix]
+        self.current_batch = batch_ix
 
-    def _loss(self, y_true, y_pred, epoch):
+        if val:
+            self.states = self.batch_states_val[batch_ix]
+            self.current_batch = -1  # Yes?
+
+    def _init_states(self):
+
+        self.batch_states = [0]*self.num_batches
+
+        for batch_ix in range(self.num_batches):  # OK!
+            xs_init = None
+            hs_init = np.full(self.num_hidden_nodes, 0)
+            ys_init = None
+            init_states = [(xs_init, hs_init, ys_init)]
+            self.batch_states[batch_ix] = init_states
+
+        if self.val:
+            self.batch_states_val = [0]*self.num_batches
+
+            for batch_ix in range(self.num_batches):  # OK!
+                xs_init = None
+                hs_init = np.full(self.num_hidden_nodes, 0)
+                ys_init = None
+                init_states = [(xs_init, hs_init, ys_init)]
+                self.batch_states_val[batch_ix] = init_states
+
+    def _loss(self, y_true, y_pred, epoch, val=False):
         loss = self._loss_function(y_true, y_pred)
-
         self.stats['loss'][epoch] += np.mean(loss)
+        if val:
+            loss = self._loss_function(y_true, y_pred, nograd=True)
+            self.stats['val_loss'][epoch] += np.mean(loss)
 
-    def plot_loss(self, plt, figax=None, savepath=None, show=False):
+    def plot_loss(self, plt, figax=None, savepath=None, show=False, val=False):
         # Some config stuff
         if figax is None:
             fig, ax = plt.subplots()
@@ -476,12 +508,25 @@ _
         ax.get_yaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
         ax.plot(
                 self.stats['loss'],
-                label=str(self._optimiser.__class__.__name__))
+                label=str(self._optimiser.__class__.__name__),
+                alpha=1,
+                linestyle='solid')
+        if val:
+            if self.val:
+                ax.plot(
+                        self.stats['val_loss'],
+                        label=str(self._optimiser.__class__.__name__) + '_val',
+                        alpha=1,
+                        linestyle='dotted')
+            else:
+                print('Model has not been validated - creating plot without \
+                       validation data')
 
         ax.legend()
         ax.set_xlabel('Epochs')
         ax.set_ylabel('Loss')
-        ax.set_title('Training loss')
+        ax.set_title('Loss over epochs')
+
         if savepath:
             plt.savefig(savepath)
         if show:
