@@ -55,12 +55,12 @@ class RNN:
 
         # Initialize weights and biases as None until properly
         # initialized in fit() method.
-        # xh = input  -> hidden
-        # hh = hidden -> hidden
-        # hy = hidden -> output
-        self.w_xh, self.w_hh, self.w_hy = None, None, None
+        # U = input  -> hidden
+        # W = hidden -> hidden
+        # V = hidden -> output
+        self.U, self.W, self.V = None, None, None
 
-        self.b_hh, self.b_hy = None, None
+        self.b, self.c = None, None
 
         self.xs, self.hs, self.ys = None, None, None
 
@@ -105,11 +105,11 @@ class RNN:
 
         for t in range(len(x_sample)):
 
-            x_weighted = self.w_xh @ x_sample[t]
-            h_weighted = self.w_hh @ self.states[-1][1]  # last hidden state
-            a = self.b_hh + h_weighted + x_weighted
+            x_weighted = self.U @ x_sample[t]
+            h_weighted = self.W @ self.states[-1][1]  # last hidden state
+            a = self.b + h_weighted + x_weighted
             h = self._hidden_activation(a)
-            o = self.b_hy + self.w_hy @ h[0]
+            o = self.c + self.V @ h[0]
             y = self._output_activation(o)
             ys[t] = y
 
@@ -126,12 +126,12 @@ class RNN:
 
     def _backward(self) -> None:
         debug = True
-        deltas_w_xh = np.zeros_like(self.w_xh, dtype=float)
-        deltas_w_hh = np.zeros_like(self.w_hh, dtype=float)
-        deltas_w_hy = np.zeros_like(self.w_hy, dtype=float)
+        deltas_U = np.zeros_like(self.U, dtype=float)
+        deltas_W = np.zeros_like(self.W, dtype=float)
+        deltas_V = np.zeros_like(self.V, dtype=float)
 
-        deltas_b_hh = np.zeros_like(self.b_hh, dtype=float)
-        deltas_b_hy = np.zeros_like(self.b_hy, dtype=float)
+        deltas_b = np.zeros_like(self.b, dtype=float)
+        deltas_c = np.zeros_like(self.c, dtype=float)
 
         prev_grad_h_Cost = np.zeros_like(self.num_hidden_nodes)
 
@@ -153,27 +153,27 @@ class RNN:
             the "+" sign, is 0 for first step of BPTT.
             Eq. 16 in tex-document(see also eq. 15 for first iteration of BPPT)
             Eq. 10.20 in DLB"""
-            grad_h_Cost = prev_grad_h_Cost + self.w_hy.T @ grad_o_Cost_t
+            grad_h_Cost = prev_grad_h_Cost + self.V.T @ grad_o_Cost_t
 
             """The following line differentiates the
             hidden activation function."""
             d_act = self._hidden_activation.grad(self.states[t][1])
 
             """BELOW IS CALCULATION OF GRADIENT W/RESPECT TO WEIGHTS"""
-            deltas_w_hy += grad_o_Cost_t * self.states[t][1]  # 10.24 in DLB
-            deltas_w_hh += d_act @ self.states[t-1][1] * grad_h_Cost  # 10.26 in DLB
-            deltas_w_xh += d_act @ self.states[t][0].T * grad_h_Cost  # 10.28 in DLB
-            deltas_b_hy += grad_o_Cost_t.T * 1  # 10.22 in DLB
-            deltas_b_hh += d_act @ grad_h_Cost  # 10.22 in DLB
+            deltas_V += grad_o_Cost_t * self.states[t][1]  # 10.24 in DLB
+            deltas_W += d_act @ self.states[t-1][1] * grad_h_Cost  # 10.26 in DLB
+            deltas_U += d_act @ self.states[t][0].T * grad_h_Cost  # 10.28 in DLB
+            deltas_c += grad_o_Cost_t.T * 1  # 10.22 in DLB
+            deltas_b += d_act @ grad_h_Cost  # 10.22 in DLB
 
             """Pass on the bits of the chain rule to the calculation of
             the previous hidden state update
             This line equals the first part of eq. 10.21 in DLB
             To emphasize: the part before the "+" in 10.21 in DLB"""
-            prev_grad_h_Cost = d_act @ self.w_hh.T @ grad_h_Cost
+            prev_grad_h_Cost = d_act @ self.W.T @ grad_h_Cost
 
-        deltas = [deltas_w_xh, deltas_w_hh, deltas_w_hy,
-                  deltas_b_hh, deltas_b_hy]
+        deltas = [deltas_U, deltas_W, deltas_V,
+                  deltas_b, deltas_c]
 
         clipped_deltas = optimisers.clip_gradient(deltas, self.clip_threshold)
 
@@ -427,28 +427,28 @@ _
         -------------------------------
         None
         """
-        self.w_xh = np.random.uniform(
+        self.U = np.random.uniform(
             -0.3, 0.3, size=(self.num_hidden_nodes, self.num_features))
-        self.w_hh = np.random.uniform(
+        self.W = np.random.uniform(
             -0.3, 0.3, size=(self.num_hidden_nodes, self.num_hidden_nodes))
-        self.w_hy = np.random.uniform(
+        self.V = np.random.uniform(
             -0.3, 0.3, size=(self.output_size, self.num_hidden_nodes))
 
-        self.b_hh = np.random.uniform(
+        self.b = np.random.uniform(
             -0.3, 0.3, size=(1, self.num_hidden_nodes))
-        self.b_hy = np.random.uniform(
+        self.c = np.random.uniform(
             -0.3, 0.3, size=(1, self.output_size))
 
-        self.parameters = [self.w_xh, self.w_hh, self.w_hy,
-                           self.b_hh, self.b_hy]
+        self.parameters = [self.U, self.W, self.V,
+                           self.b, self.c]
 
         total = sum(np.size(param) for param in self.parameters)
         self.stats['parameter_count'] = total
-        self.stats['parameters'] = {'w_xh:', self.w_xh.shape,
-                                    'w_hh:', self.w_xh.shape,
-                                    'w_hy:', self.w_xh.shape,
-                                    'b_hh:', self.w_xh.shape,
-                                    'b_hy:', self.w_xh.shape}
+        self.stats['parameters'] = {'U:', self.U.shape,
+                                    'W:', self.U.shape,
+                                    'V:', self.U.shape,
+                                    'b:', self.U.shape,
+                                    'c:', self.U.shape}
 
     def _dispatch_state(self, batch_ix, val=False) -> None:
         """
