@@ -192,6 +192,7 @@ class RNN:
             inverse_vocab=None,
             X_val: np.ndarray = None,
             y_val: np.ndarray = None,
+            num_epochs_no_update: int = None,
             ) -> np.ndarray:
         """
         Method for training the RNN, iteratively runs _forward(), and
@@ -277,6 +278,8 @@ _
             self.stats['val_loss'] = np.zeros(epochs)
             self.num_samples_val = X_val.shape[0]
 
+        counter = 0
+
         for e in tqdm(range(epochs)):
 
             self.e = e
@@ -351,6 +354,13 @@ _
 
                     for param, step in zip(self.parameters, average_steps):
                         param -= step
+
+            if self.val:
+                if self.stats['val_loss'][e] > self.stats['val_loss'][e-1]:
+                    counter += 1
+                if counter == num_epochs_no_update:
+                    print(f'Val loss increasing, stopping fitting.')
+                    break
 
         read_load_model.save_model(self, 'saved_models/', self.name)
 
