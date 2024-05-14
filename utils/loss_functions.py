@@ -30,17 +30,18 @@ class Mean_Square_Loss(LossFunction):
         # print(y_true.shape)
         # print(y_pred.shape)
 
-        loss = np.square(np.subtract(y_true, y_pred)).mean(axis=1) # was 0
+        loss = np.square(np.subtract(y_true, y_pred)).mean() # was 0
         # print(loss.shape)
         # exit()
         return loss
 
     def grad(self):
         grad = (2
-                * np.subtract(self.y_pred.sum(axis=1), self.y_true.sum(axis=1))
+                * np.subtract(self.y_pred, self.y_true)
                 # * np.subtract(self.y_pred, self.y_true)
                 / len(self.y_pred))
         self.loss = None
+
     # def grad(self):
     #     grad = (2
     #             * np.subtract(self.y_pred, self.y_true)
@@ -99,7 +100,7 @@ class Classification_Logloss(LossFunction):
             self.y_true = y_true
             self.probabilities = probabilities
 
-        return -np.sum(y_true*np.log(probabilities), axis=0)
+        return -np.mean(y_true*np.log(probabilities))
 
     def grad(self):
         probabilities = np.copy(self.probabilities)

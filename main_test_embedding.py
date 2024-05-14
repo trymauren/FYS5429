@@ -3,7 +3,8 @@ import git
 import resource
 import numpy as np
 from numpy.linalg import norm
-from rnn.rnn import RNN
+# from rnn.rnn import RNN
+from rnn.rnn_batch_new import RNN
 import matplotlib.pyplot as plt
 import utils.text_processing as text_proc
 from utils.text_processing import WORD_EMBEDDING
@@ -24,10 +25,10 @@ plt.rc('legend', fontsize=MEDIUM_SIZE)    # legend fontsize
 plt.rc('figure', titlesize=BIGGER_SIZE)
 
 
-import tensorflow as tf
-path_to_file = tf.keras.utils.get_file('shakespeare.txt', 'https://storage.googleapis.com/download.tensorflow.org/data/shakespeare.txt')
+# import tensorflow as tf
+# path_to_file = tf.keras.utils.get_file('shakespeare.txt', 'https://storage.googleapis.com/download.tensorflow.org/data/shakespeare.txt')
 # Read, then decode for py2 compat.
-text = open(path_to_file, 'rb').read().decode(encoding='utf-8')
+# text = open(path_to_file, 'rb').read().decode(encoding='utf-8')
 # length of text is the number of characters in it
 
 word_emb = WORD_EMBEDDING()
@@ -42,11 +43,11 @@ X = np.array([X])
 y = np.array([y])
 vocab, inverse_vocab = text_proc.create_vocabulary(X)
 y = text_proc.create_labels(X, inverse_vocab)
-X = X.reshape(1, 2, -1, X.shape[-1])
-y = y.reshape(1, 2, -1, y.shape[-1])
+X = X.reshape(1, -1, 2, X.shape[-1])
+y = y.reshape(1, -1, 2, y.shape[-1])
 print('X:', X.shape)
 print('y:', y.shape)
-
+    
 
 def model_performance_embeddings(rnn, X, num_tests, test_length = 20, seed_length = 10):
     """
@@ -87,12 +88,14 @@ def model_performance_embeddings(rnn, X, num_tests, test_length = 20, seed_lengt
         similarities.append(np.mean(cos_similarity))
     return np.round(np.mean(similarities),3)
 
+
 train = True
+
 infer = True
 if train:
 
-    epo = 100
-    hidden_nodes = 300
+    epo = 1000
+    hidden_nodes = 600
     # learning_rates = [0.001, 0.003, 0.005, 0.01]
 
     rnn = RNN(
@@ -101,7 +104,7 @@ if train:
         loss_function='Classification_Logloss()',
         optimiser='AdaGrad()',
         clip_threshold=np.inf,
-        name='tf_text_test1',
+        name='new',
         learning_rate=0.001,
         )
 
@@ -120,12 +123,12 @@ if train:
 if infer:
 
     X_seed = np.array([word_emb.get_embeddings("What should")])
-    rnn = load_model('saved_models/tf_text_test1')
+    rnn = load_model('saved_models/new')
     rnn.plot_loss(plt, show=True)
-    predict = rnn.predict(X_seed, time_steps_to_generate=10)
+    predict = rnn.predict(X_seed.reshape(-1, 1, X_seed.shape[-1]), time_steps_to_generate=10)
     for emb in predict:
         print(word_emb.find_closest(emb, 1))
-    print(model_performance_embeddings(rnn, X, 10))
+    # print(model_performance_embeddings(rnn, X, 10))
 
 bytes_usage_peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 gb_usage_peak = round(bytes_usage_peak/1000000000, 3)
