@@ -27,17 +27,59 @@ class Mean_Square_Loss(LossFunction):
         if not nograd:
             self.y_pred = y_pred
             self.y_true = y_true
-        loss = np.square(np.subtract(y_true, y_pred)).mean(axis=0)
+        # print(y_true.shape)
+        # print(y_pred.shape)
+
+        loss = np.square(np.subtract(y_true, y_pred)).mean(axis=1) # was 0
+        # print(loss.shape)
+        # exit()
         return loss
 
     def grad(self):
         grad = (2
-                * np.subtract(self.y_pred, self.y_true)
+                * np.subtract(self.y_pred.sum(axis=1), self.y_true.sum(axis=1))
+                # * np.subtract(self.y_pred, self.y_true)
                 / len(self.y_pred))
         self.loss = None
-        if grad.ndim == self.y_pred.ndim:
-            grad = np.expand_dims(grad, axis=grad.ndim)
+    # def grad(self):
+    #     grad = (2
+    #             * np.subtract(self.y_pred, self.y_true)
+    #             # * np.subtract(self.y_pred, self.y_true)
+    #             / len(self.y_pred))
+    #     self.loss = None
+        # grad = np.mean(grad, axis=1, keepdims=True)
+        # print(grad.shape)
+        # if grad.ndim == self.y_pred.ndim:
+        #     grad = np.expand_dims(grad, axis=grad.ndim)
+        # print(grad.shape)
+        # return np.expand_dims(grad, axis=grad.ndim)
         return grad
+    # def eval(self, y_true, y_pred, nograd=False):
+    #     if not nograd:
+    #         self.y_pred = y_pred
+    #         self.y_true = y_true
+    #     # print(y_true.shape)
+    #     # print(y_pred.shape)
+
+    #     loss = np.square(np.subtract(y_true, y_pred)).mean(axis=1) # was 0
+    #     # print(loss.shape)
+    #     # exit()
+    #     return loss
+
+    # def grad(self):
+    #     grad = (2
+    #             * np.subtract(self.y_pred, self.y_true)
+    #             # * np.subtract(self.y_pred, self.y_true)
+    #             / len(self.y_pred))
+    #     self.loss = None
+
+    #     # grad = np.mean(grad, axis=1, keepdims=True)
+    #     # print(grad.shape)
+    #     # if grad.ndim == self.y_pred.ndim:
+    #     #     grad = np.expand_dims(grad, axis=grad.ndim)
+    #     # print(grad.shape)
+    #     # return np.expand_dims(grad, axis=grad.ndim)
+    #     return grad
 
 
 class Classification_Logloss(LossFunction):
@@ -64,6 +106,6 @@ class Classification_Logloss(LossFunction):
         # See deep learning book, 10.18 for
         # explanation of the following line.
         grad = probabilities - self.y_true
-        if grad.ndim == self.y_true.ndim:
-            grad = np.expand_dims(grad, axis=grad.ndim)
+        # if grad.ndim == self.y_true.ndim:
+        #     grad = np.expand_dims(grad, axis=grad.ndim)
         return grad
