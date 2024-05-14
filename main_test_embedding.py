@@ -2,11 +2,13 @@ import sys
 import git
 import resource
 import numpy as np
+from numpy.linalg import norm
 from rnn.rnn import RNN
 import matplotlib.pyplot as plt
 import utils.text_processing as text_proc
 from utils.text_processing import WORD_EMBEDDING
 from utils.read_load_model import load_model
+from utils.loss_functions import Mean_Square_Loss
 path_to_root = git.Repo('.', search_parent_directories=True).working_dir
 sys.path.append(path_to_root)
 
@@ -30,8 +32,8 @@ text = open(path_to_file, 'rb').read().decode(encoding='utf-8')
 
 word_emb = WORD_EMBEDDING()
 
-text_data = text_proc.read_file(path_to_file)
-# text_data = text_proc.read_file("data/embedding_test.txt")
+#text_data = text_proc.read_file(path_to_file)
+text_data = text_proc.read_file("data/three_little_pigs.txt")
 X, y = np.array(word_emb.translate_and_shift(text_data))
 # print('X:', X.shape)
 # print('y:', y.shape)
@@ -45,12 +47,52 @@ y = y.reshape(1, 2, -1, y.shape[-1])
 print('X:', X.shape)
 print('y:', y.shape)
 
+
+def model_performance_embeddings(rnn, X, num_tests, test_length = 20, seed_length = 10):
+    """
+    Parameters:
+    ------------------------------------------------------
+    rnn:
+        - rnn model to measure performance on.
+    X:
+        - dataset to make predictions on.
+    num_tests:
+        - number of predictions to base performance measure upon
+    test_length:
+        - length of each prediction
+    seed_length:
+        - length of input/seed to base a prediction upon
+    
+    Returns:
+    -------------------------------------------------------
+    cosine similarity between prediction and actual text:
+        - float
+    """
+    similarities = []
+    mse = Mean_Square_Loss()
+
+    for i in range(num_tests):
+        start_idx = np.random.randint(0,len(X[0][0])-seed_length)
+
+        X_seed = X[0][0][start_idx:start_idx+seed_length][:]
+        y_true = X[0][0][start_idx + seed_length : start_idx + seed_length + test_length][:]
+
+        predict = rnn.predict(X_seed, test_length)
+        cos_similarity = []
+        for pred_emb, true_emb in zip(predict,y_true):
+            if np.sum(pred_emb) != 0 and np.sum(true_emb) != 0:
+                #print(np.dot(pred_emb,true_emb)/(norm(pred_emb)*norm(true_emb)))
+                cos_similarity.append(np.dot(pred_emb,true_emb)/(norm(pred_emb)*norm(true_emb)))
+        #print(cos_similarity)
+        similarities.append(np.mean(cos_similarity))
+    return np.round(np.mean(similarities),3)
+
 train = True
 infer = True
 if train:
 
-    epo = 1000
-    hidden_nodes = 600
+    epo = 100
+    hidden_nodes = 300
     # learning_rates = [0.001, 0.003, 0.005, 0.01]
 
     rnn = RNN(
@@ -59,7 +101,7 @@ if train:
         loss_function='Classification_Logloss()',
         optimiser='AdaGrad()',
         clip_threshold=np.inf,
-        name='tf_text_test2',
+        name='tf_text_test1',
         learning_rate=0.001,
         )
 
@@ -83,6 +125,7 @@ if infer:
     predict = rnn.predict(X_seed, time_steps_to_generate=10)
     for emb in predict:
         print(word_emb.find_closest(emb, 1))
+    print(model_performance_embeddings(rnn, X, 10))
 
 bytes_usage_peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 gb_usage_peak = round(bytes_usage_peak/1000000000, 3)
