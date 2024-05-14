@@ -1,6 +1,7 @@
 import numpy as np
-from scipy.special import expit  # used for sigmoid
+from scipy.special import expit, softmax
 from collections.abc import Callable
+# from jax.numpy import jnp
 # https://dustinstansbury.github.io/theclevermachine/derivation-common-neural-network-activation-functions
 
 """
@@ -58,7 +59,7 @@ class Tanh(Activation):
         Assume a is the output from tanh(a)! or else the
         derivative must be calculated differently
         """
-        return np.diag(1 - a.squeeze()**2)
+        return 1 - np.square(a)
 
 
 class Sigmoid(Activation):
@@ -84,8 +85,11 @@ class Softmax(Activation):
         super().__init__()
 
     def eval(self, z):
-        softmax = np.exp(z)/np.sum(np.exp(z))
-        return softmax
+        # softmax = np.exp(z)/np.sum(np.exp(z), axis=1)
+        # print('heiweooieffioijo')
+        # print(np.sum(softmax))
+        # print(softmax.shape)
+        return softmax(z, axis=1)
 
     def grad(self, a):
         """
@@ -93,6 +97,7 @@ class Softmax(Activation):
         derivative must be calculated differently
         """
         s = a.reshape(-1, 1)
+        # print(np.diagflat(s) - np.dot(s, s.T).shape)
         return np.diagflat(s) - np.dot(s, s.T)
 
 # soft = Softmax()

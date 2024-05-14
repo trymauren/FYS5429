@@ -14,7 +14,9 @@ from utils.activations import Relu, Tanh, Identity, Softmax
 from utils.loss_functions import Mean_Square_Loss as mse
 from utils.loss_functions import Classification_Logloss
 from utils.optimisers import SGD, SGD_momentum, AdaGrad, RMSProp
-
+import jax
+from jax import jit
+import jax.numpy as jnp
 # path_to_root = git.Repo('.', search_parent_directories=True).working_dir
 # sys.path.append(path_to_root)
 
@@ -74,18 +76,23 @@ class RNN:
             'other stuff': [],
         }
 
-    def jax_shit_up()
+    def jax_shit_up(self):
+        self._forward_unit = jit(self._forward_unit)
+        self._forward = jit(self._forward_jax)
 
     def _forward_unit(self, x_sample):
         x_weighted = x_sample @ self.U.T
         h_weighted = self.states[-1][1] @ self.W.T  # last hidden state
         a = self.b + h_weighted + x_weighted
         h = self._hidden_activation(a)
-        o = self.c + self.V @ h[0]
+        o = self.c + h @ self.V.T
         y = self._output_activation(o)
         return a, h, o, y
 
     def _generate(self, X_seed, output_probabilities=False):
+        def onehot_to_embedding(index):
+            embedding = self.vocab[index]
+            return embedding
 
         ys = np.zeros((len(X_seed), self.batch_size, self.output_size))
 
@@ -94,15 +101,35 @@ class RNN:
             self.states.append((None, h))
             ys[t] = y
             if t < len(X_seed)-1:
-
                 if output_probabilities:
-                    ix = self.probabilities_to_index(ys.flatten()[-1])
+                    ix = self.probabilities_to_index(y.flatten())
                     X_seed[t+1] = onehot_to_embedding(ix)
                 else:
                     X_seed[t+1] = y
         return ys
 
     def _forward(
+            self,
+            x_sample,
+            generate=False,
+            nograd=False,
+            output_probabilities=False,
+            debug=False,
+            ) -> None:
+
+        xs = np.zeros((len(x_sample), self.batch_size, self.num_features))
+        hs = np.zeros((len(x_sample), self.batch_size, self.num_hidden_nodes))
+        ys = np.zeros((len(x_sample), self.batch_size, self.output_size))
+
+        for t in range(len(x_sample)):
+            a, h, o, y = self._forward_unit(x_sample[t])
+            xs[t] = x_sample[t]
+            hs[t] = h
+            ys[t] = y
+
+        return xs, hs, ys
+
+    def _forward_jax(
             self,
             x_sample,
             generate=False,
@@ -129,16 +156,15 @@ class RNN:
             embedding = self.vocab[index]
             return embedding
 
-        xs = np.zeros((len(x_sample), self.batch_size, self.num_features))
-        hs = np.zeros((len(x_sample), self.batch_size, self.num_hidden_nodes))
-        ys = np.zeros((len(x_sample), self.batch_size, self.output_size))
+        xs = jnp.zeros((len(x_sample), self.batch_size, self.num_features))
+        hs = jnp.zeros((len(x_sample), self.batch_size, self.num_hidden_nodes))
+        ys = jnp.zeros((len(x_sample), self.batch_size, self.output_size))
 
         for t in range(len(x_sample)):
             a, h, o, y = self._forward_unit(x_sample[t])
-            xs[t] = x_sample[t]
-            hs[t] = h
-            ys[t] = y
-
+            xs = xs.at[t].set(x_sample[t])
+            hs = hs.at[t].set(h)
+            ys = ys.at[t].set(y)
         return xs, hs, ys
 
     def _backward(self) -> None:
@@ -150,7 +176,7 @@ class RNN:
         deltas_b = np.zeros_like(self.b, dtype=float)
         deltas_c = np.zeros_like(self.c, dtype=float)
 
-        prev_grad_h_Cost = np.zeros((self.num_hidden_nodes, 1))
+        prev_grad_h_Cost = np.zeros((self.batch_size, self.num_hidden_nodes))
 
         loss_grad = self._loss_function.grad()
 
@@ -160,7 +186,8 @@ class RNN:
                 print('broke')
                 break  # reached init state
             """BELOW IS CALCULATION OF GRADIENTS W/RESPECT TO HIDDEN_STATES"""
-            grad_o_Cost_t = np.expand_dims(loss_grad[t], axis=-1)
+            grad_o_Cost_t = loss_grad[t]
+
             """A h_state's gradient update are both influenced by the
             preceding h_state at time t+1, as well as the output at
             time t. The cost/loss of the current output derivated with
@@ -170,23 +197,25 @@ class RNN:
             the "+" sign, is 0 for first step of BPTT.
             Eq. 16 in tex-document(see also eq. 15 for first iteration of BPPT)
             Eq. 10.20 in DLB"""
-            grad_h_Cost = prev_grad_h_Cost + self.V.T @ grad_o_Cost_t
+            grad_h_Cost = prev_grad_h_Cost + grad_o_Cost_t @ self.V
 
             # """The following line differentiates the
             # hidden activation function."""
-            d_act = self._hidden_activation.grad(np.mean(self.states[t][1], axis=0, keepdims=True))
+            d_act = self._hidden_activation.grad(self.states[t][1])
+            # d_act = (1 - self.states[t][1] * self.states[t][1])
+
             """BELOW IS CALCULATION OF GRADIENT W/RESPECT TO WEIGHTS"""
-            deltas_V += grad_o_Cost_t @ np.mean(self.states[t][1], keepdims=True, axis=0)  # 10.24 in DLB
-            deltas_W += d_act @ grad_h_Cost @ np.mean(self.states[t-1][1], keepdims=True, axis=0)  # 10.26 in DLB
-            deltas_U += d_act @ grad_h_Cost @ np.mean(self.states[t][0], keepdims=True, axis=0)  # 10.28 in DLB
-            # deltas_c += grad_o_Cost_t.T * 1  # 10.22 in DLB
-            # deltas_b += (d_act @ grad_h_Cost).T  # 10.22 in DLB
+            deltas_V += grad_o_Cost_t.T @ self.states[t][1]  # 10.24 in DLB
+            deltas_W += (d_act * grad_h_Cost).T @ self.states[t-1][1]  # 10.26 in DLB
+            deltas_U += (d_act * grad_h_Cost).T @ self.states[t][0]  # 10.28 in DL
+            deltas_c += np.mean(grad_o_Cost_t * 1, axis=0)  # 10.22 in DLB
+            deltas_b += np.mean(d_act * grad_h_Cost, axis=0).T  # 10.22 in DLB
 
             """Pass on the bits of the chain rule to the calculation of
             the previous hidden state update
             This line equals the first part of eq. 10.21 in DLB
             To emphasize: the part before the "+" in 10.21 in DLB"""
-            prev_grad_h_Cost = self.W.T @ d_act @ grad_h_Cost
+            prev_grad_h_Cost = d_act * grad_h_Cost @ self.W
 
         deltas = [deltas_U, deltas_W, deltas_V,
                   deltas_b, deltas_c]
@@ -259,7 +288,7 @@ _
         (np.ndarray, np.ndarray) = (output states, hidden state)
 
         """
-
+        # self.jax_shit_up()
         X = np.array(X, dtype=object)  # object to allow inhomogeneous shape
         y = np.array(y, dtype=object)  # object to allow inhomogeneous shape
 
@@ -354,7 +383,7 @@ _
 
     def _loss(self, y_true, y_pred, epoch, val=False):
         loss = self._loss_function(y_true, y_pred)
-        self.stats['loss'][epoch] += np.mean(loss)
+        self.stats['loss'][epoch] += loss
         if val:
             loss = self._loss_function(y_true, y_pred, nograd=True)
             self.stats['val_loss'][epoch] += np.mean(loss)
@@ -386,21 +415,21 @@ _
         _, self.batch_size, num_features = X.shape
 
         X_gen = np.zeros((time_steps_to_generate, self.batch_size, num_features))
+
         xs_init = None
         hs_init = np.full((self.batch_size, self.num_hidden_nodes), 0)
         self.states = [(xs_init, hs_init)]
 
-        _, _, ys = self._forward(np.array(X, dtype=float))
+        _, _, seed_out = self._forward(X, debug=True)
 
         if self.vocab:
-            last_y_emb = self.vocab[self.probabilities_to_index(ys[-1])]
+            last_y_emb = self.vocab[self.probabilities_to_index(seed_out[-1, -1, :])]
             X_gen[0] = last_y_emb
             ys = self._generate(X_gen, output_probabilities=True)
-            return [self.vocab[self.probabilities_to_index(y)] for y in ys]
+            return [self.vocab[self.probabilities_to_index(y.flatten())] for y in ys]
 
         else:
-            print(ys)
-            X_gen[0] = ys.flatten()[-1]
+            X_gen[0] = seed_out[-1][-1]  # this may not be robust
             ys = self._generate(X_gen, output_probabilities=False)
             return ys
 
@@ -489,7 +518,6 @@ _
         #         ys_init = None
         #         init_states = [(xs_init, hs_init, ys_init)]
         #         self.batch_states_val[batch_ix] = init_states
-
 
     def plot_loss(self, plt, figax=None, savepath=None, show=False, val=False):
         # Some config stuff
