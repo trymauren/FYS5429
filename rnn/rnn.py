@@ -154,7 +154,6 @@ class RNN:
             Eq. 16 in tex-document(see also eq. 15 for first iteration of BPPT)
             Eq. 10.20 in DLB"""
             grad_h_Cost = prev_grad_h_Cost + self.V.T @ grad_o_Cost_t
-
             """The following line differentiates the
             hidden activation function."""
             d_act = self._hidden_activation.grad(self.states[t][1])
