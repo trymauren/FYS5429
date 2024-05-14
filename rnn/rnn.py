@@ -368,7 +368,7 @@ _
         if self.val:
             self.stats['val_loss'] /= self.num_samples_val
 
-        print('Train complete')
+        print('Training complete')
 
         return self.ys, self.states[-1][1]
 
@@ -512,7 +512,7 @@ _
         else:
             fig, ax = figax
         ax.set_yscale('symlog')
-        ax.set_yticks([5, 10, 20, 50, 100, 200, 500, 1000])
+        #ax.set_yticks([5, 10, 20, 50, 100, 200, 500, 1000])
         ax.get_yaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
         ax.plot(
                 self.stats['loss'],
