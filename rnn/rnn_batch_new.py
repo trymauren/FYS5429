@@ -318,12 +318,12 @@ _
         self.stats['loss'] = np.zeros(epochs)
         self.val = False
 
-        # if X_val is not None and y_val is not None:
-        #     self.val = True
-        #     self.stats['val_loss'] = np.zeros(epochs)
-        #     self.num_samples_val = X_val.shape[0]
+        if X_val is not None and y_val is not None:
+            self.val = True
+            self.stats['val_loss'] = np.zeros(epochs)
+            self.num_samples_val = X_val.shape[0]
 
-        # counter = 0
+        counter = 0
 
         for e in tqdm(range(epochs)):
 
@@ -339,6 +339,8 @@ _
                 t_pointer = 0
 
                 while t_pointer < seq_length:
+
+                    self._dispatch_state(val=False)
 
                     pointer_end = t_pointer + num_forwardsteps
                     pointer_end = min(pointer_end, seq_length)
@@ -358,13 +360,24 @@ _
 
                     steps = self._backward()
 
+                    if self.val and len(X_val) > idx:
+                        x_sample_val = X_val[idx]
+                        y_sample_val = y_val[idx]
+                        x_batch_val = x_sample_val[t_pointer:pointer_end]
+                        y_batch_val = y_sample_val[t_pointer:pointer_end]
+                        self._dispatch_state(val=self.val)
+                        xs, hs, y_val_pred = self._forward(x_batch_val, nograd=True)
+                        for x, h in zip(xs, hs):
+                            self.states.append((x, h))
+                        self._loss(y_batch_val, y_val_pred, e, val=self.val)
+
                     t_pointer += num_forwardsteps
 
                     for param, step in zip(self.parameters, steps):
                         param -= step
 
             if self.val:
-                if self.stats['val_loss'][e] > self.stats['val_loss'][e-1]:
+                if self.stats['val_loss'][e] >= self.stats['val_loss'][e-1]:
                     counter += 1
                 if counter == num_epochs_no_update:
                     print(f'Val loss increasing, stopping fitting.')
@@ -386,7 +399,7 @@ _
         self.stats['loss'][epoch] += loss
         if val:
             loss = self._loss_function(y_true, y_pred, nograd=True)
-            self.stats['val_loss'][epoch] += np.mean(loss)
+            self.stats['val_loss'][epoch] += loss
 
     def predict(
             self,
@@ -485,7 +498,7 @@ _
                                     'b:', self.b.shape,
                                     'c:', self.c.shape}
 
-    def _dispatch_state(self, batch_ix, val=False) -> None:
+    def _dispatch_state(self, val=False) -> None:
         """
         'Dispatches' the states of current batch by swapping out what
         self.states references.
@@ -496,28 +509,25 @@ _
         -------------------------------
         None
         """
-        self.states = self.batch_states[batch_ix]
-        self.current_batch = batch_ix
+        if not val:
+            self.val_states = self.states.copy()
+            self.states = self.train_states
 
         if val:
-            self.states = self.batch_states_val[batch_ix]
-            self.current_batch = -1  # Yes?
+            self.train_states = self.states.copy()
+            self.states = self.val_states
 
     def _init_states(self):
 
         xs_init = None
-        hs_init = np.full((self.batch_size, self.num_hidden_nodes), 0) # correct!!
+        hs_init = np.full((self.batch_size, self.num_hidden_nodes), 0)
         init_states = [(xs_init, hs_init)]
-        self.states = init_states
-        # if self.val:
-        #     self.batch_states_val = [0]*self.batch_size
+        self.train_states = init_states
 
-        #     for batch_ix in range(self.batch_size):  # OK!
-        #         xs_init = None
-        #         hs_init = np.full(self.num_hidden_nodes, 0)
-        #         ys_init = None
-        #         init_states = [(xs_init, hs_init, ys_init)]
-        #         self.batch_states_val[batch_ix] = init_states
+        if self.val:
+            self.val_states = self.train_states.copy()
+
+        self.states = self.train_states
 
     def plot_loss(self, plt, figax=None, savepath=None, show=False, val=False):
         # Some config stuff
