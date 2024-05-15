@@ -85,10 +85,6 @@ class Softmax(Activation):
         super().__init__()
 
     def eval(self, z):
-        # softmax = np.exp(z)/np.sum(np.exp(z), axis=1)
-        # print('heiweooieffioijo')
-        # print(np.sum(softmax))
-        # print(softmax.shape)
         return softmax(z, axis=1)
 
     def grad(self, a):
@@ -99,10 +95,3 @@ class Softmax(Activation):
         s = a.reshape(-1, 1)
         # print(np.diagflat(s) - np.dot(s, s.T).shape)
         return np.diagflat(s) - np.dot(s, s.T)
-
-# soft = Softmax()
-# data = [1/np.e,1/np.e,1/np.e]
-# eval = soft.eval(data)
-# print(eval)
-# grad = soft.grad(eval)
-# print(grad)
