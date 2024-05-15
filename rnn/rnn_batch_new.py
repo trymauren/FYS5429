@@ -188,7 +188,7 @@ class RNN:
             """BELOW IS CALCULATION OF GRADIENTS W/RESPECT TO HIDDEN_STATES"""
             grad_o_Cost_t = loss_grad[t]
 
-            """A h_state's gradient update are both influenced by the
+            """A h_state's gradient update is influenced by both the
             preceding h_state at time t+1, as well as the output at
             time t. The cost/loss of the current output derivated with
             respect to hidden state t is what makes up the following
@@ -202,7 +202,6 @@ class RNN:
             # """The following line differentiates the
             # hidden activation function."""
             d_act = self._hidden_activation.grad(self.states[t][1])
-            # d_act = (1 - self.states[t][1] * self.states[t][1])
 
             """BELOW IS CALCULATION OF GRADIENT W/RESPECT TO WEIGHTS"""
             deltas_V += grad_o_Cost_t.T @ self.states[t][1]  # 10.24 in DLB
@@ -318,12 +317,12 @@ _
         self.stats['loss'] = np.zeros(epochs)
         self.val = False
 
-        # if X_val is not None and y_val is not None:
-        #     self.val = True
-        #     self.stats['val_loss'] = np.zeros(epochs)
-        #     self.num_samples_val = X_val.shape[0]
+        if X_val is not None and y_val is not None:
+            self.val = True
+            self.stats['val_loss'] = np.zeros(epochs)
+            self.num_samples_val = X_val.shape[0]
 
-        # counter = 0
+        counter = 0
 
         for e in tqdm(range(epochs)):
 
@@ -377,7 +376,7 @@ _
         if self.val:
             self.stats['val_loss'] /= self.num_samples_val
 
-        print('Train complete')
+        print('Training complete')
 
         return self.ys, self.states[-1][1]
 
@@ -407,10 +406,6 @@ _
         np.ndarray
         - Generated sequence
         """
-
-        # if X.ndim > 3 or X.ndim < 2:
-        #     raise ValueError("Input data for X has to be of 3 dimensions:\
-        #                      Samples x time steps x features")
 
         _, self.batch_size, num_features = X.shape
 
@@ -443,6 +438,7 @@ _
         Parameters:
         -------------------------------
         None
+
         Returns:
         -------------------------------
         None
@@ -509,15 +505,15 @@ _
         hs_init = np.full((self.batch_size, self.num_hidden_nodes), 0) # correct!!
         init_states = [(xs_init, hs_init)]
         self.states = init_states
-        # if self.val:
-        #     self.batch_states_val = [0]*self.batch_size
+        if self.val:
+            self.batch_states_val = [0]*self.batch_size
 
-        #     for batch_ix in range(self.batch_size):  # OK!
-        #         xs_init = None
-        #         hs_init = np.full(self.num_hidden_nodes, 0)
-        #         ys_init = None
-        #         init_states = [(xs_init, hs_init, ys_init)]
-        #         self.batch_states_val[batch_ix] = init_states
+            for batch_ix in range(self.batch_size):  # OK!
+                xs_init = None
+                hs_init = np.full(self.num_hidden_nodes, 0)
+                ys_init = None
+                init_states = [(xs_init, hs_init, ys_init)]
+                self.batch_states_val[batch_ix] = init_states
 
     def plot_loss(self, plt, figax=None, savepath=None, show=False, val=False):
         # Some config stuff
@@ -526,7 +522,7 @@ _
         else:
             fig, ax = figax
         ax.set_yscale('symlog')
-        # ax.set_yticks([5, 10, 20, 50, 100, 200, 500, 1000])
+        ax.set_yticks([5, 10, 20, 50, 100, 200, 500, 1000])
         ax.get_yaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
         ax.plot(
                 self.stats['loss'],
