@@ -14,7 +14,7 @@ def create_sines(examples=10, seq_length=100):
     for _ in range(examples):
         example_x = np.array(
             [np.sin(
-                np.linspace(0, 8*np.pi, seq_length+1))]
+                np.linspace(0, 4*np.pi, seq_length+1))]
             ).T
         # example_x = np.repeat(example_x, 2, axis=1)
         X.append(example_x[0:-1])
@@ -25,9 +25,10 @@ def create_sines(examples=10, seq_length=100):
 
 seq_length = 30
 examples = 1
-epo = 1000
-hidden_nodes = 50
+epo = 100
+hidden_nodes = 30
 num_backsteps = 30
+num_forwardsteps = 30
 learning_rate = 0.001
 optimiser = 'AdaGrad()'
 num_batches = 1
@@ -41,28 +42,7 @@ X_nonbatched = X.reshape(examples, num_batches, -1, features)
 y_nonbatched = y.reshape(examples, num_batches, -1, features)
 
 
-rnn = RNN(
-    hidden_activation='Tanh()',
-    output_activation='Identity()',
-    loss_function='mse()',
-    optimiser=optimiser,
-    clip_threshold=1,
-    learning_rate=learning_rate,
-    )
-
-hidden_state = rnn.fit(
-    X_nonbatched,
-    y_nonbatched,
-    epo,
-    num_hidden_nodes=hidden_nodes,
-    num_backsteps=num_backsteps,
-    num_forwardsteps=num_backsteps,
-)
-plt.plot(rnn.get_stats()['loss'], label='rnn')
-
-
-
-# rnn_batch = RNN_parallel(
+# rnn = RNN(
 #     hidden_activation='Tanh()',
 #     output_activation='Identity()',
 #     loss_function='mse()',
@@ -71,16 +51,47 @@ plt.plot(rnn.get_stats()['loss'], label='rnn')
 #     learning_rate=learning_rate,
 #     )
 
-# hidden_state_batch = rnn_batch.fit(
-#     X_batched,
-#     y_batched,
+# hidden_state = rnn.fit(
+#     X_nonbatched,
+#     y_nonbatched,
 #     epo,
 #     num_hidden_nodes=hidden_nodes,
 #     num_backsteps=num_backsteps,
 #     num_forwardsteps=num_backsteps,
 # )
+# plt.plot(rnn.get_stats()['loss'], label='rnn')
 
-# plt.plot(rnn_batch.get_stats()['loss'], label='batch')
+
+
+rnn_batch = RNN_parallel(
+    hidden_activation='Tanh()',
+    output_activation='Identity()',
+    loss_function='mse()',
+    optimiser=optimiser,
+    clip_threshold=1,
+    learning_rate=learning_rate,
+    )
+
+hidden_state_batch = rnn_batch.fit(
+    X_batched,
+    y_batched,
+    epo,
+    num_hidden_nodes=hidden_nodes,
+    num_backsteps=num_backsteps,
+    num_forwardsteps=num_forwardsteps,
+    # gradcheck_at=10,
+    X_val=X_batched,
+    y_val=y_batched,
+)
+seed = X_batched[0, :10, :, :]
+ret = rnn_batch.predict(seed, time_steps_to_generate=1000)
+
+plt.plot(rnn_batch.get_stats()['loss'], label='batch train')
+plt.plot(rnn_batch.get_stats()['val_loss'], label='batch val')
 
 plt.legend()
+plt.show()
+
+plt.plot(np.concatenate((seed.squeeze(), ret.squeeze())))
+plt.plot(y_batched.squeeze())
 plt.show()

@@ -2,7 +2,9 @@ import sys
 import git
 import numpy as np
 from collections.abc import Callable
-
+import jax
+from jax import grad
+import jax.numpy as jnp
 path_to_root = git.Repo('.', search_parent_directories=True).working_dir
 sys.path.append(path_to_root)
 
@@ -22,21 +24,56 @@ class Mean_Square_Loss(LossFunction):
         self.y_pred = None
         self.y_true = None
 
+    # def eval(self, y_true, y_pred, nograd=False):
+    #     if not nograd:
+    #         self.y_pred = y_pred
+    #         self.y_true = y_true
+    #     loss = self.jax_loss(y_true, y_pred)
+    #     return loss
+
+    # def grad(self):
+    #     grad = (
+    #             # 1
+    #             2
+    #             * np.subtract(self.y_pred, self.y_true)
+    #             / len(self.y_pred)
+    #             )
+    #     return grad
+
+    # def jax_loss(self, y_true, y_pred):
+    #     return jnp.square(jnp.subtract(y_true, y_pred)).mean()
+
+    # def grad_2(self):
+
+    #     grad = jax.grad(self.jax_loss, argnums=0)
+    #     return grad(self.y_true, self.y_pred)
+
     def eval(self, y_true, y_pred, nograd=False):
+        y_true = jnp.array(y_true, dtype=jnp.float64)
+        y_pred = jnp.array(y_pred, dtype=jnp.float64)
         if not nograd:
             self.y_pred = y_pred
             self.y_true = y_true
-
-        loss = np.square(np.subtract(y_true, y_pred)).mean()
-        return loss
+        loss = self.jax_loss(y_true, y_pred)
+        return np.asarray(loss, dtype=y_pred.dtype)
 
     def grad(self):
-        grad = (2
+        grad = (
+                # 1
+                2
                 * np.subtract(self.y_pred, self.y_true)
-                # * np.subtract(self.y_pred, self.y_true)
-                / len(self.y_pred))
-
+                / len(self.y_pred)
+                )
+        # grad = grad.mean(axis=1)  # comment in to use reduction
         return grad
+
+    def jax_loss(self, y_true, y_pred):
+        return jnp.square(jnp.subtract(y_true, y_pred)).mean(dtype=y_pred.dtype)
+
+    def grad_2(self):
+
+        grad = jax.grad(self.jax_loss, argnums=0)
+        return grad(self.y_true, self.y_pred)
 
 
 class Classification_Logloss(LossFunction):
