@@ -26,11 +26,11 @@ def create_sines(examples=10, seq_length=100):
 seq_length = 30
 examples = 1
 epo = 1000
-hidden_nodes = 4
-num_backsteps = 15
+hidden_nodes = 50
+num_backsteps = 30
 learning_rate = 0.001
 optimiser = 'AdaGrad()'
-num_batches = 2
+num_batches = 1
 features = 1
 
 X, y = create_sines(examples=examples, seq_length=seq_length)
@@ -41,28 +41,7 @@ X_nonbatched = X.reshape(examples, num_batches, -1, features)
 y_nonbatched = y.reshape(examples, num_batches, -1, features)
 
 
-# rnn = RNN(
-#     hidden_activation='Tanh()',
-#     output_activation='Identity()',
-#     loss_function='mse()',
-#     optimiser=optimiser,
-#     clip_threshold=1,
-#     learning_rate=learning_rate,
-#     )
-
-# hidden_state = rnn.fit(
-#     X_nonbatched,
-#     y_nonbatched,
-#     epo,
-#     num_hidden_nodes=hidden_nodes,
-#     num_backsteps=num_backsteps,
-#     num_forwardsteps=num_backsteps,
-# )
-# plt.plot(rnn.get_stats()['loss'], label='rnn')
-
-
-
-rnn_batch = RNN_parallel(
+rnn = RNN(
     hidden_activation='Tanh()',
     output_activation='Identity()',
     loss_function='mse()',
@@ -71,16 +50,37 @@ rnn_batch = RNN_parallel(
     learning_rate=learning_rate,
     )
 
-hidden_state_batch = rnn_batch.fit(
-    X_batched,
-    y_batched,
+hidden_state = rnn.fit(
+    X_nonbatched,
+    y_nonbatched,
     epo,
     num_hidden_nodes=hidden_nodes,
     num_backsteps=num_backsteps,
     num_forwardsteps=num_backsteps,
 )
+plt.plot(rnn.get_stats()['loss'], label='rnn')
+
+
+
+# rnn_batch = RNN_parallel(
+#     hidden_activation='Tanh()',
+#     output_activation='Identity()',
+#     loss_function='mse()',
+#     optimiser=optimiser,
+#     clip_threshold=1,
+#     learning_rate=learning_rate,
+#     )
+
+# hidden_state_batch = rnn_batch.fit(
+#     X_batched,
+#     y_batched,
+#     epo,
+#     num_hidden_nodes=hidden_nodes,
+#     num_backsteps=num_backsteps,
+#     num_forwardsteps=num_backsteps,
+# )
 
 # plt.plot(rnn_batch.get_stats()['loss'], label='batch')
 
-# plt.legend()
-# plt.show()
+plt.legend()
+plt.show()
