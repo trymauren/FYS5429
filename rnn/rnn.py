@@ -98,7 +98,7 @@ class RNN:
         initial_loss = self._loss_function(y, y_pred)
         print('initial_loss:', initial_loss)
         # Get the analytical gradients
-        bptt_gradients = self._backward()
+        bptt_gradients = self._backward(check=True)
 
         self.states = stored_states.copy()
         # Check gradients for each parameter
@@ -204,7 +204,7 @@ class RNN:
 
         return ys
 
-    def _backward(self) -> None:
+    def _backward(self, check=False) -> None:
 
         debug = True
         deltas_U = np.zeros_like(self.U, dtype=np.float64)
@@ -222,7 +222,6 @@ class RNN:
         for t in reversed(range(len(loss_grad) + 1)):
             if self.states[t][0] is None:
                 break  # reached init state
-
             # """BELOW IS CALCULATION OF GRADIENT W/RESPECT TO WEIGHTS"""
             # deltas_V += grad_o_Cost_t * self.states[t][1]  # 10.24 in DLB
             # deltas_W += d_act @ self.states[t-1][1] * grad_h_Cost  # 10.26 in DLB
@@ -244,11 +243,13 @@ class RNN:
 
         deltas = [deltas_U, deltas_W, deltas_V,
                   deltas_b, deltas_c]
+        if check:
+            return deltas
 
-        # clipped_deltas = optimisers.clip_gradient(deltas, self.clip_threshold)
+        clipped_deltas = optimisers.clip_gradient(deltas, self.clip_threshold)
 
-        # steps = self._optimiser(clipped_deltas, **self.optimiser_params)
-        return deltas
+        steps = self._optimiser(clipped_deltas, **self.optimiser_params)
+        return steps
 
     def fit(self,
             X: np.ndarray = None,
@@ -378,8 +379,7 @@ _
                         x_batch = x_sample[batch_ix][t_pointer:pointer_end]
                         y_batch = y_sample[batch_ix][t_pointer:pointer_end]
 
-                        if e == 10:
-                            print('uhwfiufe')
+                        if e == epochs-1:
                             self.gradient_check(x_batch, y_batch)
 
                         if self.val:
@@ -427,8 +427,6 @@ _
                         np.array(batch_steps, dtype=object), axis=0)
 
                     for param, step in zip(self.parameters, average_steps):
-                        param = np.array(param, dtype=np.float64)
-                        step = np.array(step, dtype=np.float64)
                         param -= step
 
             if self.val:
