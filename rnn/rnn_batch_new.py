@@ -188,7 +188,7 @@ class RNN:
             """BELOW IS CALCULATION OF GRADIENTS W/RESPECT TO HIDDEN_STATES"""
             grad_o_Cost_t = loss_grad[t]
 
-            """A h_state's gradient update are both influenced by the
+            """A h_state's gradient update is influenced by both the
             preceding h_state at time t+1, as well as the output at
             time t. The cost/loss of the current output derivated with
             respect to hidden state t is what makes up the following
@@ -202,7 +202,6 @@ class RNN:
             # """The following line differentiates the
             # hidden activation function."""
             d_act = self._hidden_activation.grad(self.states[t][1])
-            # d_act = (1 - self.states[t][1] * self.states[t][1])
 
             """BELOW IS CALCULATION OF GRADIENT W/RESPECT TO WEIGHTS"""
             deltas_V += grad_o_Cost_t.T @ self.states[t][1]  # 10.24 in DLB
@@ -390,7 +389,7 @@ _
         if self.val:
             self.stats['val_loss'] /= self.num_samples_val
 
-        print('Train complete')
+        print('Training complete')
 
         return self.ys, self.states[-1][1]
 
@@ -420,10 +419,6 @@ _
         np.ndarray
         - Generated sequence
         """
-
-        # if X.ndim > 3 or X.ndim < 2:
-        #     raise ValueError("Input data for X has to be of 3 dimensions:\
-        #                      Samples x time steps x features")
 
         _, self.batch_size, num_features = X.shape
 
@@ -456,6 +451,7 @@ _
         Parameters:
         -------------------------------
         None
+
         Returns:
         -------------------------------
         None
@@ -536,7 +532,7 @@ _
         else:
             fig, ax = figax
         ax.set_yscale('symlog')
-        # ax.set_yticks([5, 10, 20, 50, 100, 200, 500, 1000])
+        ax.set_yticks([5, 10, 20, 50, 100, 200, 500, 1000])
         ax.get_yaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
         ax.plot(
                 self.stats['loss'],

@@ -36,9 +36,6 @@ word_emb = WORD_EMBEDDING()
 #text_data = text_proc.read_file(path_to_file)
 text_data = text_proc.read_file("data/three_little_pigs.txt")
 X, y = np.array(word_emb.translate_and_shift(text_data))
-# print('X:', X.shape)
-# print('y:', y.shape)
-# text_data = text_data.split('.')
 X = np.array([X])
 y = np.array([y])
 vocab, inverse_vocab = text_proc.create_vocabulary(X)
@@ -94,7 +91,7 @@ train = True
 infer = True
 if train:
 
-    epo = 1000
+    epo = 10
     hidden_nodes = 600
     # learning_rates = [0.001, 0.003, 0.005, 0.01]
 
@@ -118,17 +115,16 @@ if train:
         vocab=vocab,
         inverse_vocab=inverse_vocab,
         )
-    rnn.plot_loss(plt, show=True)
+    rnn.plot_loss(plt, show=True, val=True)
 
 if infer:
 
     X_seed = np.array([word_emb.get_embeddings("What should")])
     rnn = load_model('saved_models/new')
-    rnn.plot_loss(plt, show=True)
     predict = rnn.predict(X_seed.reshape(-1, 1, X_seed.shape[-1]), time_steps_to_generate=10)
     for emb in predict:
         print(word_emb.find_closest(emb, 1))
-    # print(model_performance_embeddings(rnn, X, 10))
+    print(model_performance_embeddings(rnn, X, 10))
 
 bytes_usage_peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 gb_usage_peak = round(bytes_usage_peak/1000000000, 3)
