@@ -229,11 +229,13 @@ class RNN:
             # deltas_c += grad_o_Cost_t.T * 1  # 10.22 in DLB
             # deltas_b += d_act @ grad_h_Cost  # 10.22 in DLB
             d_act = 1 - np.square(self.states[t][1])
+
             grad_o_Cost_t = np.expand_dims(loss_grad[t-1], axis=0)  # ensure 2d-array, will not work for emb
+            print(grad_o_Cost_t.shape)
+            exit()
             grad_h_Cost = self.V.T @ grad_o_Cost_t + prev_grad_h_Cost
             grad_h_Cost_raw = d_act * grad_h_Cost
-            """The following line differentiates the
-            hidden activation function."""
+
             deltas_V += grad_o_Cost_t @ self.states[t][1].T  # 10.24 in DLB
             deltas_W += grad_h_Cost_raw @ self.states[t-1][1].T # 10.26 in DLB
             deltas_U += grad_h_Cost_raw @ self.states[t][0].T # 10.28 in DLB

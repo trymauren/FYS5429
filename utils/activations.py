@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.special import expit, softmax
 from collections.abc import Callable
+from jax import numpy as jnp
 # from jax.numpy import jnp
 # https://dustinstansbury.github.io/theclevermachine/derivation-common-neural-network-activation-functions
 
