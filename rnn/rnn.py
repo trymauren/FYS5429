@@ -11,10 +11,9 @@ from collections.abc import Callable
 from utils import optimisers
 from utils import read_load_model
 from utils.activations import Relu, Tanh, Identity, Softmax
-from utils.loss_functions import Mean_Square_Loss as mse
-from utils.loss_functions import Classification_Logloss
+from utils.loss_functions_old import Mean_Square_Loss as mse
+from utils.loss_functions_old import Classification_Logloss
 from utils.optimisers import SGD, SGD_momentum, AdaGrad, RMSProp
-
 # path_to_root = git.Repo('.', search_parent_directories=True).working_dir
 # sys.path.append(path_to_root)
 
@@ -74,6 +73,85 @@ class RNN:
             'other stuff': [],
         }
 
+    def gradient_check(self, x, y, epsilon=1e-7):
+        """
+        Numerical gradient checking for the RNN.
+
+        Parameters:
+        -------------------------------
+        x: np.ndarray
+            - A single input sample.
+        y: np.ndarray
+            - The corresponding label for the input sample.
+        epsilon: float
+            - A small number for computing numerical gradients.
+
+        Returns:
+        -------------------------------
+        None
+        """
+        stored_states = self.states.copy()
+
+        # Perform a forward pass to get the initial loss and predicted outputs
+        y_pred = self._forward(x)
+        # Compute the initial loss
+        initial_loss = self._loss_function(y, y_pred)
+        print('initial_loss:', initial_loss)
+        # Get the analytical gradients
+        bptt_gradients = self._backward()
+
+        self.states = stored_states.copy()
+        # Check gradients for each parameter
+        count = 0
+        param_names = ['U', 'W', 'V', 'b', 'c']
+
+        for pidx, (param, pname) in enumerate(zip(self.parameters, param_names)):
+            param_shape = param.shape
+            numerical_grad = np.zeros_like(param)
+
+            # Iterate over all elements in the parameter
+            it = np.nditer(param, flags=['multi_index'], op_flags=['readwrite'])
+            while not it.finished:
+                ix = it.multi_index
+
+                original_value = param[ix].copy()
+
+                param[ix] = original_value + epsilon
+                stored_states = self.states.copy()
+
+                ys = self._forward(x)
+                self.states = stored_states.copy()
+                gradplus = self._loss_function(ys, y)
+
+                param[ix] = original_value - epsilon
+                stored_states = self.states.copy()
+
+                ys = self._forward(x)
+                self.states = stored_states.copy()
+                gradminus = self._loss_function(ys, y)
+
+                estimated_gradient = (gradplus - gradminus)/(2*epsilon)
+                # Reset parameter to original value
+                param[ix] = original_value
+                # The gradient for this parameter calculated using backpropagation
+
+                backprop_gradient = bptt_gradients[pidx][ix]
+
+                # calculate The relative error: (|x - y|/(|x| + |y|))
+                relative_error = np.abs(backprop_gradient - estimated_gradient)/(np.abs(backprop_gradient) + np.abs(estimated_gradient))
+                # If the error is to large fail the gradient check
+                if relative_error > epsilon:
+                    print(f'Epsilon:{epsilon}')
+                    print(f"Gradient Check ERROR: parameter={pname}")
+                    print(f"+h Loss: {gradplus}")
+                    print(f"-h Loss: {gradminus}")
+                    print(f"Estimated_gradient: {estimated_gradient}")
+                    print(f"Backpropagation gradient: {backprop_gradient}")
+                    print(f"Relative Error: {relative_error}")
+                else:
+                    print(f"Gradient check passed for parameter {pname}. Difference: {relative_error}")
+                it.iternext()
+
     def _forward(
             self,
             x_sample,
@@ -104,16 +182,18 @@ class RNN:
         ys = np.zeros((len(x_sample), self.output_size))
 
         for t in range(len(x_sample)):
-
-            x_weighted = self.U @ x_sample[t]
-            h_weighted = self.W @ self.states[-1][1]  # last hidden state
+            x = x_sample[t]
+            if x.ndim == 1:
+                x = np.expand_dims(x, axis=0)
+            x_weighted = self.U @ x
+            h_weighted = self.W @ self.states[-1][1]
             a = self.b + h_weighted + x_weighted
             h = self._hidden_activation(a)
-            o = self.c + self.V @ h[0]
+            o = self.c + self.V @ h
             y = self._output_activation(o)
             ys[t] = y
 
-            self.states.append((a, h[0], y))
+            self.states.append((x, h, y))
 
             if generate and t < len(x_sample)-1:
                 if output_probabilities:
@@ -125,60 +205,50 @@ class RNN:
         return ys
 
     def _backward(self) -> None:
+
         debug = True
-        deltas_U = np.zeros_like(self.U, dtype=float)
-        deltas_W = np.zeros_like(self.W, dtype=float)
-        deltas_V = np.zeros_like(self.V, dtype=float)
+        deltas_U = np.zeros_like(self.U, dtype=np.float64)
+        deltas_W = np.zeros_like(self.W, dtype=np.float64)
+        deltas_V = np.zeros_like(self.V, dtype=np.float64)
 
-        deltas_b = np.zeros_like(self.b, dtype=float)
-        deltas_c = np.zeros_like(self.c, dtype=float)
+        deltas_b = np.zeros_like(self.b, dtype=np.float64)
+        deltas_c = np.zeros_like(self.c, dtype=np.float64)
 
-        prev_grad_h_Cost = np.zeros_like(self.num_hidden_nodes)
+        prev_grad_h_Cost = np.zeros_like(self.states[0][1], dtype=np.float64)
 
         loss_grad = self._loss_function.grad()
         start_from = min(len(self.states), len(loss_grad))
-        for t in range(start_from-1, -1, -1):
+
+        for t in reversed(range(len(loss_grad) + 1)):
             if self.states[t][0] is None:
                 break  # reached init state
 
-            """BELOW IS CALCULATION OF GRADIENTS W/RESPECT TO HIDDEN_STATES"""
-            grad_o_Cost_t = loss_grad[t]
-
-            """A h_state's gradient update are both influenced by the
-            preceding h_state at time t+1, as well as the output at
-            time t. The cost/loss of the current output derivated with
-            respect to hidden state t is what makes up the following
-            line before the "+ sign". After "+" is the gradient through
-            previous hidden states and their outputs. This term after
-            the "+" sign, is 0 for first step of BPTT.
-            Eq. 16 in tex-document(see also eq. 15 for first iteration of BPPT)
-            Eq. 10.20 in DLB"""
-            grad_h_Cost = prev_grad_h_Cost + self.V.T @ grad_o_Cost_t
+            # """BELOW IS CALCULATION OF GRADIENT W/RESPECT TO WEIGHTS"""
+            # deltas_V += grad_o_Cost_t * self.states[t][1]  # 10.24 in DLB
+            # deltas_W += d_act @ self.states[t-1][1] * grad_h_Cost  # 10.26 in DLB
+            # deltas_U += d_act @ self.states[t][0].T * grad_h_Cost  # 10.28 in DLB
+            # deltas_c += grad_o_Cost_t.T * 1  # 10.22 in DLB
+            # deltas_b += d_act @ grad_h_Cost  # 10.22 in DLB
+            d_act = 1 - np.square(self.states[t][1])
+            grad_o_Cost_t = np.expand_dims(loss_grad[t-1], axis=0)  # ensure 2d-array, will not work for emb
+            grad_h_Cost = self.V.T @ grad_o_Cost_t + prev_grad_h_Cost
+            grad_h_Cost_raw = d_act * grad_h_Cost
             """The following line differentiates the
             hidden activation function."""
-            d_act = self._hidden_activation.grad(self.states[t][1])
-
-            """BELOW IS CALCULATION OF GRADIENT W/RESPECT TO WEIGHTS"""
-            deltas_V += grad_o_Cost_t * self.states[t][1]  # 10.24 in DLB
-            deltas_W += d_act @ self.states[t-1][1] * grad_h_Cost  # 10.26 in DLB
-            deltas_U += d_act @ self.states[t][0].T * grad_h_Cost  # 10.28 in DLB
-            deltas_c += grad_o_Cost_t.T * 1  # 10.22 in DLB
-            deltas_b += d_act @ grad_h_Cost  # 10.22 in DLB
-
-            """Pass on the bits of the chain rule to the calculation of
-            the previous hidden state update
-            This line equals the first part of eq. 10.21 in DLB
-            To emphasize: the part before the "+" in 10.21 in DLB"""
-            prev_grad_h_Cost = d_act @ self.W.T @ grad_h_Cost
+            deltas_V += grad_o_Cost_t @ self.states[t][1].T  # 10.24 in DLB
+            deltas_W += grad_h_Cost_raw @ self.states[t-1][1].T # 10.26 in DLB
+            deltas_U += grad_h_Cost_raw @ self.states[t][0].T # 10.28 in DLB
+            deltas_c += grad_o_Cost_t * 1  # 10.22 in DLB
+            deltas_b += grad_h_Cost_raw  # 10.22 in DLB
+            prev_grad_h_Cost = self.W.T @ grad_h_Cost_raw
 
         deltas = [deltas_U, deltas_W, deltas_V,
                   deltas_b, deltas_c]
 
-        clipped_deltas = optimisers.clip_gradient(deltas, self.clip_threshold)
+        # clipped_deltas = optimisers.clip_gradient(deltas, self.clip_threshold)
 
-        steps = self._optimiser(clipped_deltas, **self.optimiser_params)
-
-        return steps
+        # steps = self._optimiser(clipped_deltas, **self.optimiser_params)
+        return deltas
 
     def fit(self,
             X: np.ndarray = None,
@@ -269,24 +339,23 @@ _
         self.num_batches = num_batches
         self._init_weights()
         self.vocab, self.inverse_vocab = vocab, inverse_vocab
-        self.stats['loss'] = np.zeros(epochs)
+        self.stats['loss'] = np.zeros(epochs, dtype=np.float64)
         self.val = False
 
         if X_val is not None and y_val is not None:
             self.val = True
-            self.stats['val_loss'] = np.zeros(epochs)
+            self.stats['val_loss'] = np.zeros(epochs, dtype=np.float64)
             self.num_samples_val = X_val.shape[0]
 
         counter = 0
 
         for e in tqdm(range(epochs)):
-
             self.e = e
 
             for idx, (x_sample, y_sample) in enumerate(zip(X, y)):
 
-                x_sample = np.array(x_sample, dtype=float)  # asarray()?
-                y_sample = np.array(y_sample, dtype=float)  # asarray()?
+                x_sample = np.array(x_sample, dtype=np.float64)  # asarray()?
+                y_sample = np.array(y_sample, dtype=np.float64)  # asarray()?
 
                 self._init_states()
 
@@ -309,6 +378,10 @@ _
                         x_batch = x_sample[batch_ix][t_pointer:pointer_end]
                         y_batch = y_sample[batch_ix][t_pointer:pointer_end]
 
+                        if e == 10:
+                            print('uhwfiufe')
+                            self.gradient_check(x_batch, y_batch)
+
                         if self.val:
                             # fewer val-samples than train_samples
                             if len(X_val) > idx:
@@ -321,8 +394,10 @@ _
                         # than num_forwardsteps
                         # num_forwardsteps_local = min(num_forwardsteps,
                         #                              seq_length - t_pointer)
-
                         y_pred = self._forward(x_batch)
+                        # Perform gradient checking for the first sample of the first epoch
+
+                        # grad_checker(x_batch[0:1], y_pred[0:1], y_batch[0:1])
 
                         self._loss(y_batch, y_pred, e)
 
@@ -330,7 +405,7 @@ _
                         # Inspired by https://discuss.pytorch.org/t/
                         # implementing-truncated-backpropagation-through-time
                         # /15500/4
-                        while len(self.states) > num_backsteps:
+                        while len(self.states) > num_backsteps + 1:
                             del self.states[0]
 
                         steps = self._backward()
@@ -352,6 +427,8 @@ _
                         np.array(batch_steps, dtype=object), axis=0)
 
                     for param, step in zip(self.parameters, average_steps):
+                        param = np.array(param, dtype=np.float64)
+                        step = np.array(step, dtype=np.float64)
                         param -= step
 
             if self.val:
@@ -444,7 +521,7 @@ _
             -0.3, 0.3, size=(self.output_size, self.num_hidden_nodes))
 
         self.b = np.random.uniform(
-            -0.3, 0.3, size=(1, self.num_hidden_nodes))
+            -0.3, 0.3, size=(self.num_hidden_nodes, 1))
         self.c = np.random.uniform(
             -0.3, 0.3, size=(1, self.output_size))
 
@@ -454,10 +531,10 @@ _
         total = sum(np.size(param) for param in self.parameters)
         self.stats['parameter_count'] = total
         self.stats['parameters'] = {'U:', self.U.shape,
-                                    'W:', self.U.shape,
-                                    'V:', self.U.shape,
-                                    'b:', self.U.shape,
-                                    'c:', self.U.shape}
+                                    'W:', self.W.shape,
+                                    'V:', self.V.shape,
+                                    'b:', self.b.shape,
+                                    'c:', self.c.shape}
 
     def _dispatch_state(self, batch_ix, val=False) -> None:
         """
@@ -483,7 +560,7 @@ _
 
         for batch_ix in range(self.num_batches):  # OK!
             xs_init = None
-            hs_init = np.full(self.num_hidden_nodes, 0)
+            hs_init = np.full((self.num_hidden_nodes, 1), 0)
             ys_init = None
             init_states = [(xs_init, hs_init, ys_init)]
             self.batch_states[batch_ix] = init_states
@@ -493,14 +570,14 @@ _
 
             for batch_ix in range(self.num_batches):  # OK!
                 xs_init = None
-                hs_init = np.full(self.num_hidden_nodes, 0)
+                hs_init = np.full((self.num_hidden_nodes, 1), 0)
                 ys_init = None
                 init_states = [(xs_init, hs_init, ys_init)]
                 self.batch_states_val[batch_ix] = init_states
 
     def _loss(self, y_true, y_pred, epoch, val=False):
         loss = self._loss_function(y_true, y_pred)
-        self.stats['loss'][epoch] += np.mean(loss)
+        self.stats['loss'][epoch] += loss
         if val:
             loss = self._loss_function(y_true, y_pred, nograd=True)
             self.stats['val_loss'][epoch] += np.mean(loss)
