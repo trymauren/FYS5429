@@ -29,7 +29,7 @@ epo = 1000
 hidden_nodes = 50
 num_backsteps = 30
 learning_rate = 0.001
-optimiser = 'AdaGrad()'
+optimiser = 'Adam()'
 num_batches = 1
 features = 1
 
