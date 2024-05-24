@@ -93,6 +93,52 @@ class RMSProp(Optimiser):
             self.update[idx] = self.learning_rate * rmsprop
         return self.update
 
+class Adam(Optimiser):
+    def __init__(self):
+        super().__init__()
+        self.alphas1 = None      # s in Deep Learning book, algorithm 8.7
+        self.alphas2 = None      # r in Deep Learning book, algorithm 8.7
+        # self.update  = None
+        self.t = 0
+
+    def step(self,
+             params,
+             learning_rate = .001,
+             decay_rate1 = .9,
+             decay_rate2 = .999,
+             delta = 1e-8):
+        self.learning_rate = learning_rate
+        self.decay_rate1 = decay_rate1
+        self.decay_rate2 = decay_rate2
+        self.delta = delta
+
+        if self.alphas1 is None or self.alphas2 is None:
+            self.alphas1 = [0]*len(params)
+            self.alphas2 = [0]*len(params)
+        
+        self.update  = []
+        self.t = self.t + 1
+        
+        for idx, param in enumerate(params):
+            self.alphas1[idx] = (
+                self.decay_rate1 * self.alphas1[idx]
+                + (1 - self.decay_rate1) * param
+            )
+            self.alphas2[idx] = (
+                self.decay_rate2 * self.alphas2[idx]
+                + (1 - self.decay_rate2) * np.square(param)
+            )
+            alpha1_hat = self.alphas1[idx]/(1 - self.decay_rate1**self.t)
+            alpha2_hat = self.alphas2[idx]/(1 - self.decay_rate2**self.t)
+            self.update.append(
+                -self.learning_rate * (
+                    alpha1_hat/(np.sqrt(alpha2_hat) + self.delta)
+                )
+            )
+        return self.update
+
+
+
 
 def clip_gradient(gradients: np.ndarray, threshold: float) -> np.ndarray:
     """
