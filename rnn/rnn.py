@@ -79,7 +79,7 @@ class RNN:
 
         self.float_size = np.float64
 
-    def gradient_check(self, x, y, epsilon=1e-6):
+    def gradient_check(self, x, y, num_backsteps, epsilon=1e-6):
 
         stored_states = self.states.copy()
         xs, hs, y_pred = self._forward(x)
@@ -87,21 +87,20 @@ class RNN:
             self.states.append((x_state, h_state))
 
         loss = self._loss_function(y, y_pred)
-        # print('loss:', loss)
+
+        while len(self.states) > num_backsteps + 1:
+            del self.states[0]
+
         analytical_grad = self._backward(check=True)
 
         self.states = stored_states.copy()
 
         count = 0
         param_names = ['U', 'W', 'V', 'b', 'c']
-
+        print('GRADCHECK')
         for pidx, (param, pname) in enumerate(zip(self.parameters, param_names)):
             param_shape = param.shape
             numerical_grad = np.zeros_like(param)
-            # if pname == 'U':
-            #     continue
-            # if pname == 'W':
-            #     continue
             it = np.nditer(param, flags=['multi_index'], op_flags=['readwrite'])
             while not it.finished:
                 ix = it.multi_index
@@ -135,7 +134,7 @@ class RNN:
                     print(f"Backpropagation gradient: {bptt_grad_param}")
                     print(f"Relative Error: {relative_error}")
                     print(f"Index of param in {pname} with error: {ix}, value of param: {param[ix]}")
-                    exit()
+                    # exit()
                 else:
                     print(f"Gradient check passed for parameter {pname}. Difference: {relative_error}")
                     print(f"Index of param in {pname} with correct value: {ix}, value of param: {param[ix]}")
@@ -238,20 +237,19 @@ class RNN:
 
         loss_grad = self._loss_function.grad()
 
-        for t in reversed(range(len(loss_grad) + 1)):
-            if self.states[t][0] is None:
-                break  # reached init state
+        for t in reversed(range(len(loss_grad))):
+            # if self.states[t][0] is None:
+            #     break  # reached init state
+            grad_o_Cost_t = loss_grad[t]
 
-            grad_o_Cost_t = loss_grad[t-1]
-
-            d_act = self._hidden_activation.grad(self.states[t][1])
+            d_act = self._hidden_activation.grad(self.states[t+1][1])
 
             grad_h_Cost = grad_o_Cost_t @ self.V + prev_grad_h_Cost
             grad_h_Cost_raw = d_act * grad_h_Cost
 
-            deltas_V += grad_o_Cost_t.T @ self.states[t][1]
-            deltas_W += grad_h_Cost_raw.T @ self.states[t-1][1]
-            deltas_U += grad_h_Cost_raw.T @ self.states[t][0]
+            deltas_V += grad_o_Cost_t.T @ self.states[t+1][1]
+            deltas_W += grad_h_Cost_raw.T @ self.states[t][1]
+            deltas_U += grad_h_Cost_raw.T @ self.states[t+1][0]
             deltas_c += np.sum(grad_o_Cost_t, axis=0)
             deltas_b += np.sum(grad_h_Cost_raw, axis=0)
             prev_grad_h_Cost = grad_h_Cost_raw @ self.W
@@ -391,7 +389,7 @@ _
                     y_batch = y_sample[t_pointer:pointer_end]
 
                     if e == gradcheck_at:
-                        self.gradient_check(x_batch, y_batch)
+                        self.gradient_check(x_batch, y_batch, num_backsteps)
 
                     xs, hs, y_pred = self._forward(x_batch)
 
