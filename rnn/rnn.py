@@ -13,7 +13,7 @@ from utils import read_load_model
 from utils.activations import Relu, Tanh, Identity, Softmax
 from utils.loss_functions_old import Mean_Square_Loss as mse
 from utils.loss_functions_old import Classification_Logloss
-from utils.optimisers import SGD, SGD_momentum, AdaGrad, RMSProp
+from utils.optimisers import SGD, SGD_momentum, AdaGrad, RMSProp, Adam
 # path_to_root = git.Repo('.', search_parent_directories=True).working_dir
 # sys.path.append(path_to_root)
 
