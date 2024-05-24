@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.special import expit, softmax
 from collections.abc import Callable
+from jax import numpy as jnp
 # from jax.numpy import jnp
 # https://dustinstansbury.github.io/theclevermachine/derivation-common-neural-network-activation-functions
 
@@ -85,13 +86,14 @@ class Softmax(Activation):
         super().__init__()
 
     def eval(self, z):
-        return softmax(z, axis=1)
+        return softmax(z, axis=-1)
 
-    def grad(self, a):
-        """
-        Assume a is the output from softmax(z)! or else the
-        derivative must be calculated differently
-        """
-        s = a.reshape(-1, 1)
-        # print(np.diagflat(s) - np.dot(s, s.T).shape)
-        return np.diagflat(s) - np.dot(s, s.T)
+    # def grad(self, a):
+    #     """
+    #     Assume a is the output from softmax(z)! or else the
+    #     derivative must be calculated differently
+    #     """
+
+    #     # s = a.reshape(-1, 1)
+    #     # # print(np.diagflat(s) - np.dot(s, s.T).shape)
+    #     return np.diagflat(s) - np.dot(s, s.T)

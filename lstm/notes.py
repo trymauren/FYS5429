@@ -1,0 +1,12 @@
+# f = forget gate
+# i = inut gate
+# o = output gate
+# c = cell
+c[0] = 0
+h[0] = 0
+f[t] = self.sigmoid(self.w_f @ x[t] + self.u_f @ h[t-1] + self.b_f)
+i[t] = self.sigmoid(self.w_i @ x[t] + self.u_i @ h[t-1] + self.b_i)
+o[t] = self.sigmoid(self.w_i @ x[t] + self.u_o @ h[t-1] + self.b_o)
+c_tilde[t] = self.tanh(self.w_c @ x[t] + self.u_c @ h[t-1] + self.b_c)
+c[t] = f[t] * c[t-1] + i[t] * c_tilde[t]
+h[t] = o[t] * self.tanh(c[t])  # this act can also be the identity for peephole configuration.

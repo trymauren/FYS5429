@@ -11,11 +11,15 @@ from collections.abc import Callable
 from utils import optimisers
 from utils import read_load_model
 from utils.activations import Relu, Tanh, Identity, Softmax
-from utils.loss_functions_old import Mean_Square_Loss as mse
-from utils.loss_functions_old import Classification_Logloss
+from utils.loss_functions import Mean_Square_Loss as mse
+from utils.loss_functions import Classification_Logloss as ce
 from utils.optimisers import SGD, SGD_momentum, AdaGrad, RMSProp, Adam
+import jax
+from jax import jit
+import jax.numpy as jnp
 # path_to_root = git.Repo('.', search_parent_directories=True).working_dir
 # sys.path.append(path_to_root)
+import operator
 
 
 class RNN:
@@ -73,43 +77,30 @@ class RNN:
             'other stuff': [],
         }
 
-    def gradient_check(self, x, y, epsilon=1e-7):
-        """
-        Numerical gradient checking for the RNN.
+        self.float_size = np.float64
 
-        Parameters:
-        -------------------------------
-        x: np.ndarray
-            - A single input sample.
-        y: np.ndarray
-            - The corresponding label for the input sample.
-        epsilon: float
-            - A small number for computing numerical gradients.
+    def gradient_check(self, x, y, num_backsteps, epsilon=1e-6):
 
-        Returns:
-        -------------------------------
-        None
-        """
         stored_states = self.states.copy()
+        xs, hs, y_pred = self._forward(x)
+        for x_state, h_state in zip(xs, hs):
+            self.states.append((x_state, h_state))
 
-        # Perform a forward pass to get the initial loss and predicted outputs
-        y_pred = self._forward(x)
-        # Compute the initial loss
-        initial_loss = self._loss_function(y, y_pred)
-        print('initial_loss:', initial_loss)
-        # Get the analytical gradients
-        bptt_gradients = self._backward(check=True)
+        loss = self._loss_function(y, y_pred)
+
+        while len(self.states) > num_backsteps + 1:
+            del self.states[0]
+
+        analytical_grad = self._backward(check=True)
 
         self.states = stored_states.copy()
-        # Check gradients for each parameter
+
         count = 0
         param_names = ['U', 'W', 'V', 'b', 'c']
-
+        print('GRADCHECK')
         for pidx, (param, pname) in enumerate(zip(self.parameters, param_names)):
             param_shape = param.shape
             numerical_grad = np.zeros_like(param)
-
-            # Iterate over all elements in the parameter
             it = np.nditer(param, flags=['multi_index'], op_flags=['readwrite'])
             while not it.finished:
                 ix = it.multi_index
@@ -117,138 +108,162 @@ class RNN:
                 original_value = param[ix].copy()
 
                 param[ix] = original_value + epsilon
-                stored_states = self.states.copy()
-
-                ys = self._forward(x)
-                self.states = stored_states.copy()
-                gradplus = self._loss_function(ys, y)
-
+                _, _, ys = self._forward(x)
+                gradplus = self._loss_function(y, ys)
+                # print('gradplus loss', gradplus)
                 param[ix] = original_value - epsilon
-                stored_states = self.states.copy()
+                _, _, ys = self._forward(x)
+                gradminus = self._loss_function(y, ys)
+                # print('gradmins loss', gradminus)
 
-                ys = self._forward(x)
-                self.states = stored_states.copy()
-                gradminus = self._loss_function(ys, y)
+                estimated_grad = (gradplus - gradminus)/(2*epsilon)
 
-                estimated_gradient = (gradplus - gradminus)/(2*epsilon)
-                # Reset parameter to original value
                 param[ix] = original_value
-                # The gradient for this parameter calculated using backpropagation
 
-                backprop_gradient = bptt_gradients[pidx][ix]
+                bptt_grad_param = analytical_grad[pidx][ix]
 
-                # calculate The relative error: (|x - y|/(|x| + |y|))
-                relative_error = np.abs(backprop_gradient - estimated_gradient)/(np.abs(backprop_gradient) + np.abs(estimated_gradient))
-                # If the error is to large fail the gradient check
-                if relative_error > epsilon:
+                # Calculating the relative error: (|x - y|/(|x| + |y|))
+                relative_error = np.abs(bptt_grad_param - estimated_grad)/(np.abs(bptt_grad_param) + np.abs(estimated_grad))
+
+                if relative_error > 10*epsilon:
                     print(f'Epsilon:{epsilon}')
                     print(f"Gradient Check ERROR: parameter={pname}")
                     print(f"+h Loss: {gradplus}")
                     print(f"-h Loss: {gradminus}")
-                    print(f"Estimated_gradient: {estimated_gradient}")
-                    print(f"Backpropagation gradient: {backprop_gradient}")
+                    print(f"Estimated_gradient: {estimated_grad}")
+                    print(f"Backpropagation gradient: {bptt_grad_param}")
                     print(f"Relative Error: {relative_error}")
+                    print(f"Index of param in {pname} with error: {ix}, value of param: {param[ix]}")
+                    # exit()
                 else:
                     print(f"Gradient check passed for parameter {pname}. Difference: {relative_error}")
+                    print(f"Index of param in {pname} with correct value: {ix}, value of param: {param[ix]}")
                 it.iternext()
 
-    def _forward(
-            self,
-            x_sample,
-            generate=False,
-            nograd=False,
-            output_probabilities=False,
-            ) -> None:
-        """
-        Forward-pass method to be used in fit-method for training the
-        RNN. Returns predicted output values
+    def jax_shit_up(self):
+        self._forward_unit = jit(self._forward_unit)
+        self._forward = jit(self._forward_jax)
 
-        Parameters:
-        -------------------------------
-        x_sample:
-            - A sample of vectors
+    def _generate(self, X_seed, output_probabilities=False):
 
-        generate:
-            - Whether to insert output at time t=1 as input at time t=2
-
-        Returns:
-        -------------------------------
-        None
-        """
         def onehot_to_embedding(index):
             embedding = self.vocab[index]
             return embedding
 
-        ys = np.zeros((len(x_sample), self.output_size))
+        ys = np.zeros((len(X_seed), self.batch_size, self.output_size), dtype=self.float_size)
 
-        for t in range(len(x_sample)):
-            x = x_sample[t]
-            if x.ndim == 1:
-                x = np.expand_dims(x, axis=0)
-            x_weighted = self.U @ x
-            h_weighted = self.W @ self.states[-1][1]
-            a = self.b + h_weighted + x_weighted
-            h = self._hidden_activation(a)
-            o = self.c + self.V @ h
-            y = self._output_activation(o)
+        last_h = self.states[-1][1].copy()
+
+        for t in range(len(X_seed)):
+            a, h, o, y = self._forward_unit(X_seed[t], last_h)
+            last_h = h
+            self.states.append((X_seed[t], h))  # this is not needed
             ys[t] = y
-
-            self.states.append((x, h, y))
-
-            if generate and t < len(x_sample)-1:
+            if t < len(X_seed)-1:
                 if output_probabilities:
-                    ix = self.probabilities_to_index(ys[t])
-                    x_sample[t+1] = onehot_to_embedding(ix)
+                    ix = self.probabilities_to_index(y.flatten())
+                    X_seed[t+1] = onehot_to_embedding(ix)
                 else:
-                    x_sample[t+1] = ys[t]
-
+                    X_seed[t+1] = y
         return ys
 
+    def _forward_unit(self, x_sample, last_h):
+        x_weighted = x_sample @ self.U.T
+        h_weighted = last_h @ self.W.T
+        a = self.b + h_weighted + x_weighted
+        h = self._hidden_activation(a)
+        o = self.c + h @ self.V.T
+        y = self._output_activation(o)
+        return a, h, o, y
+
+    def _forward(
+            self,
+            x_sample,
+            nograd=False,
+            output_probabilities=False,
+            debug=False,
+            ) -> None:
+
+        xs = np.zeros((len(x_sample), self.batch_size, self.num_features))
+        hs = np.zeros((len(x_sample), self.batch_size, self.num_hidden_nodes))
+        ys = np.zeros((len(x_sample), self.batch_size, self.output_size))
+
+        h = self.states[-1][1].copy()
+
+        for t in range(len(x_sample)):
+            a, h, o, y = self._forward_unit(x_sample[t], h)
+            xs[t] = x_sample[t]
+            hs[t] = h
+            ys[t] = y
+
+        return xs, hs, ys
+
+    def _forward_jax(
+            self,
+            x_sample,
+            nograd=False,
+            output_probabilities=False,
+            debug=False,
+            ) -> None:
+
+        def onehot_to_embedding(index):
+            embedding = self.vocab[index]
+            return embedding
+
+        xs = jnp.zeros((len(x_sample), self.batch_size, self.num_features))
+        hs = jnp.zeros((len(x_sample), self.batch_size, self.num_hidden_nodes))
+        ys = jnp.zeros((len(x_sample), self.batch_size, self.output_size))
+
+        h = self.states[-1][1].copy()
+
+        for t in range(len(x_sample)):
+            a, h, o, y = self._forward_unit(x_sample[t], h)
+            xs.at[t].set(x_sample[t])
+            hs.at[t].set(h)
+            ys.at[t].set(y)
+
+        return xs, hs, ys
+
     def _backward(self, check=False) -> None:
-
         debug = True
-        deltas_U = np.zeros_like(self.U, dtype=np.float64)
-        deltas_W = np.zeros_like(self.W, dtype=np.float64)
-        deltas_V = np.zeros_like(self.V, dtype=np.float64)
+        deltas_U = np.zeros_like(self.U, dtype=self.float_size)
+        deltas_W = np.zeros_like(self.W, dtype=self.float_size)
+        deltas_V = np.zeros_like(self.V, dtype=self.float_size)
 
-        deltas_b = np.zeros_like(self.b, dtype=np.float64)
-        deltas_c = np.zeros_like(self.c, dtype=np.float64)
+        deltas_b = np.zeros_like(self.b, dtype=self.float_size)
+        deltas_c = np.zeros_like(self.c, dtype=self.float_size)
 
-        prev_grad_h_Cost = np.zeros_like(self.states[0][1], dtype=np.float64)
+        prev_grad_h_Cost = np.zeros((self.batch_size, self.num_hidden_nodes), dtype=self.float_size)
 
         loss_grad = self._loss_function.grad()
-        start_from = min(len(self.states), len(loss_grad))
 
-        for t in reversed(range(len(loss_grad) + 1)):
-            if self.states[t][0] is None:
-                break  # reached init state
-            # """BELOW IS CALCULATION OF GRADIENT W/RESPECT TO WEIGHTS"""
-            # deltas_V += grad_o_Cost_t * self.states[t][1]  # 10.24 in DLB
-            # deltas_W += d_act @ self.states[t-1][1] * grad_h_Cost  # 10.26 in DLB
-            # deltas_U += d_act @ self.states[t][0].T * grad_h_Cost  # 10.28 in DLB
-            # deltas_c += grad_o_Cost_t.T * 1  # 10.22 in DLB
-            # deltas_b += d_act @ grad_h_Cost  # 10.22 in DLB
-            d_act = 1 - np.square(self.states[t][1])
-            grad_o_Cost_t = np.expand_dims(loss_grad[t-1], axis=0)  # ensure 2d-array, will not work for emb
-            grad_h_Cost = self.V.T @ grad_o_Cost_t + prev_grad_h_Cost
+        for t in reversed(range(len(loss_grad))):
+            # if self.states[t][0] is None:
+            #     break  # reached init state
+            grad_o_Cost_t = loss_grad[t]
+
+            d_act = self._hidden_activation.grad(self.states[t+1][1])
+
+            grad_h_Cost = grad_o_Cost_t @ self.V + prev_grad_h_Cost
             grad_h_Cost_raw = d_act * grad_h_Cost
-            """The following line differentiates the
-            hidden activation function."""
-            deltas_V += grad_o_Cost_t @ self.states[t][1].T  # 10.24 in DLB
-            deltas_W += grad_h_Cost_raw @ self.states[t-1][1].T # 10.26 in DLB
-            deltas_U += grad_h_Cost_raw @ self.states[t][0].T # 10.28 in DLB
-            deltas_c += grad_o_Cost_t * 1  # 10.22 in DLB
-            deltas_b += grad_h_Cost_raw  # 10.22 in DLB
-            prev_grad_h_Cost = self.W.T @ grad_h_Cost_raw
+
+            deltas_V += grad_o_Cost_t.T @ self.states[t+1][1]
+            deltas_W += grad_h_Cost_raw.T @ self.states[t][1]
+            deltas_U += grad_h_Cost_raw.T @ self.states[t+1][0]
+            deltas_c += np.sum(grad_o_Cost_t, axis=0)
+            deltas_b += np.sum(grad_h_Cost_raw, axis=0)
+            prev_grad_h_Cost = grad_h_Cost_raw @ self.W
 
         deltas = [deltas_U, deltas_W, deltas_V,
                   deltas_b, deltas_c]
+
         if check:
             return deltas
 
         clipped_deltas = optimisers.clip_gradient(deltas, self.clip_threshold)
 
         steps = self._optimiser(clipped_deltas, **self.optimiser_params)
+
         return steps
 
     def fit(self,
@@ -258,6 +273,7 @@ class RNN:
             num_hidden_nodes: int = 5,
             num_forwardsteps: int = 0,
             num_backsteps: int = 0,
+            gradcheck_at: int = np.inf,
             vocab=None,
             inverse_vocab=None,
             X_val: np.ndarray = None,
@@ -313,6 +329,7 @@ _
         (np.ndarray, np.ndarray) = (output states, hidden state)
 
         """
+        # self.jax_shit_up()
 
         X = np.array(X, dtype=object)  # object to allow inhomogeneous shape
         y = np.array(y, dtype=object)  # object to allow inhomogeneous shape
@@ -324,8 +341,8 @@ _
             raise ValueError('Output (y) must have 4 dimensions:\
                              Samples x batches x time steps x features')
 
-        self.num_samples, num_batches, seq_length, num_features = X.shape
-        self.num_samples, num_batches, seq_length, output_size = y.shape
+        self.num_samples, seq_length, self.batch_size, num_features = X.shape
+        self.num_samples, seq_length, self.batch_size, output_size = y.shape
 
         if not num_forwardsteps:
             print('Warning: number of forwarsteps is not specified - \
@@ -333,30 +350,29 @@ _
                 for long sequences')
             num_forwardsteps = seq_length
 
-        # Attribution and weight init
         self.output_size = output_size
         self.num_features = num_features
         self.num_hidden_nodes = num_hidden_nodes
-        self.num_batches = num_batches
         self._init_weights()
         self.vocab, self.inverse_vocab = vocab, inverse_vocab
-        self.stats['loss'] = np.zeros(epochs, dtype=np.float64)
+        self.stats['loss'] = np.zeros(epochs)
         self.val = False
 
         if X_val is not None and y_val is not None:
             self.val = True
-            self.stats['val_loss'] = np.zeros(epochs, dtype=np.float64)
+            self.stats['val_loss'] = np.zeros(epochs)
             self.num_samples_val = X_val.shape[0]
 
-        counter = 0
+        early_stop_counter = 0
 
         for e in tqdm(range(epochs)):
+
             self.e = e
 
             for idx, (x_sample, y_sample) in enumerate(zip(X, y)):
 
-                x_sample = np.array(x_sample, dtype=np.float64)  # asarray()?
-                y_sample = np.array(y_sample, dtype=np.float64)  # asarray()?
+                x_sample = np.array(x_sample, dtype=self.float_size)
+                y_sample = np.array(y_sample, dtype=self.float_size)
 
                 self._init_states()
 
@@ -364,75 +380,49 @@ _
 
                 while t_pointer < seq_length:
 
-                    batch_steps = [0]*num_batches
+                    self._dispatch_state(val=False)
 
-                    for batch_ix in range(num_batches):
-                        # print(f'Batch {batch_ix+1} / {num_batches}')
+                    pointer_end = t_pointer + num_forwardsteps
+                    pointer_end = min(pointer_end, seq_length)
 
-                        # Dispatch the states of the current batch
-                        self._dispatch_state(batch_ix=batch_ix)
-                        assert self.current_batch >= 0
+                    x_batch = x_sample[t_pointer:pointer_end]
+                    y_batch = y_sample[t_pointer:pointer_end]
 
-                        pointer_end = t_pointer + num_forwardsteps
-                        pointer_end = min(pointer_end, seq_length)
+                    if e == gradcheck_at:
+                        self.gradient_check(x_batch, y_batch, num_backsteps)
 
-                        x_batch = x_sample[batch_ix][t_pointer:pointer_end]
-                        y_batch = y_sample[batch_ix][t_pointer:pointer_end]
+                    xs, hs, y_pred = self._forward(x_batch)
 
-                        if e == epochs-1:
-                            self.gradient_check(x_batch, y_batch)
+                    for x, h in zip(xs, hs):
+                        self.states.append((x, h))
 
-                        if self.val:
-                            # fewer val-samples than train_samples
-                            if len(X_val) > idx:
-                                x_sample_val = X_val[idx]
-                                y_sample_val = y_val[idx]
-                                x_batch_val = x_sample_val[batch_ix][t_pointer:pointer_end]
-                                y_batch_val = y_sample_val[batch_ix][t_pointer:pointer_end]
+                    while len(self.states) > num_backsteps + 1:
+                        del self.states[0]
 
-                        # Dealing with the case when there are fewer steps left
-                        # than num_forwardsteps
-                        # num_forwardsteps_local = min(num_forwardsteps,
-                        #                              seq_length - t_pointer)
-                        y_pred = self._forward(x_batch)
-                        # Perform gradient checking for the first sample of the first epoch
+                    self._loss(y_batch, y_pred, e)
 
-                        # grad_checker(x_batch[0:1], y_pred[0:1], y_batch[0:1])
+                    steps = self._backward()
 
-                        self._loss(y_batch, y_pred, e)
-
-                        # The following while-loop saves memory.
-                        # Inspired by https://discuss.pytorch.org/t/
-                        # implementing-truncated-backpropagation-through-time
-                        # /15500/4
-                        while len(self.states) > num_backsteps + 1:
-                            del self.states[0]
-
-                        steps = self._backward()
-
-                        batch_steps[batch_ix] = steps
-
-                        if self.val:
-                            self._dispatch_state(batch_ix=batch_ix,
-                                                 val=self.val)
-                            y_val_pred = self._forward(x_batch_val,
-                                                       nograd=True)
-                            self._loss(y_batch_val, y_val_pred, e,
-                                       val=self.val)
-                            assert self.current_batch == -1
+                    if self.val and len(X_val) > idx:
+                        x_sample_val = X_val[idx]
+                        y_sample_val = y_val[idx]
+                        x_batch_val = x_sample_val[t_pointer:pointer_end]
+                        y_batch_val = y_sample_val[t_pointer:pointer_end]
+                        self._dispatch_state(val=self.val)
+                        xs, hs, y_val_pred = self._forward(x_batch_val, nograd=True)
+                        for x, h in zip(xs, hs):
+                            self.states.append((x, h))
+                        self._loss(y_batch_val, y_val_pred, e, val=self.val)
 
                     t_pointer += num_forwardsteps
 
-                    average_steps = np.mean(
-                        np.array(batch_steps, dtype=object), axis=0)
-
-                    for param, step in zip(self.parameters, average_steps):
+                    for param, step in zip(self.parameters, steps):
                         param -= step
 
             if self.val:
-                if self.stats['val_loss'][e] > self.stats['val_loss'][e-1]:
-                    counter += 1
-                if counter == num_epochs_no_update:
+                if self.stats['val_loss'][e] >= self.stats['val_loss'][e-1]:
+                    early_stop_counter += 1
+                if early_stop_counter == num_epochs_no_update:
                     print(f'Val loss increasing, stopping fitting.')
                     break
 
@@ -443,9 +433,16 @@ _
         if self.val:
             self.stats['val_loss'] /= self.num_samples_val
 
-        print('Training complete')
+        print('Train complete')
 
         return self.ys, self.states[-1][1]
+
+    def _loss(self, y_true, y_pred, epoch, val=False):
+        loss = self._loss_function(y_true, y_pred)
+        self.stats['loss'][epoch] += loss
+        if val:
+            loss = self._loss_function(y_true, y_pred, nograd=True)
+            self.stats['val_loss'][epoch] += loss
 
     def predict(
             self,
@@ -467,34 +464,40 @@ _
         - Generated sequence
         """
 
-        if X.ndim > 3 or X.ndim < 2:
-            raise ValueError("Input data for X has to be of 3 dimensions:\
-                             Samples x time steps x features")
-        if X.ndim == 3:
-            X = X[0]
-            # remove first dim of X (temporarily). Could implement
-            # prediction of more than 1 example at a time.
+        # if X.ndim > 3 or X.ndim < 2:
+        #     raise ValueError("Input data for X has to be of 3 dimensions:\
+        #                      Samples x time steps x features")
 
-        _, num_features = X.shape
-        X_gen = np.zeros((time_steps_to_generate, num_features))
+        _, self.batch_size, num_features = X.shape
+
+        X_gen = np.zeros((time_steps_to_generate,
+                          self.batch_size,
+                          num_features),
+                         dtype=self.float_size)
+
         xs_init = None
-        hs_init = np.full(self.num_hidden_nodes, 0)
-        ys_init = None
-        self.states = [(xs_init, hs_init, ys_init)]
+        hs_init = np.zeros((self.batch_size, self.num_hidden_nodes),
+                           dtype=self.float_size)
 
-        ys = self._forward(np.array(X, dtype=float))
+        self.states = [(xs_init, hs_init)]
+
+        xs, hs, seed_out = self._forward(X, debug=True)
+        for x_, h_ in zip(xs, hs):
+            self.states.append((x_, h_))
 
         if self.vocab:
-            last_y_emb = self.vocab[self.probabilities_to_index(ys[-1])]
+            last_y_emb = self.vocab[self.probabilities_to_index(
+                seed_out[-1, -1, :])]
+
             X_gen[0] = last_y_emb
-            ys = self._forward(X_gen, generate=True,
-                               output_probabilities=True)
-            return [self.vocab[self.probabilities_to_index(y)] for y in ys]
+            ys = self._generate(X_gen, output_probabilities=True)
+
+            return [self.vocab[self.probabilities_to_index(
+                y.flatten())] for y in ys]
 
         else:
-            X_gen[0] = ys[-1]
-            ys = self._forward(X_gen, generate=True,
-                               output_probabilities=False)
+            X_gen[0] = seed_out[-1][-1]  # this may not be robust
+            ys = self._generate(X_gen, output_probabilities=False)
             return ys
 
     def probabilities_to_index(self, probabilities):
@@ -512,16 +515,30 @@ _
         None
         """
         self.U = np.random.uniform(
-            -0.3, 0.3, size=(self.num_hidden_nodes, self.num_features))
+            -0.3, 0.3, size=(self.num_hidden_nodes,
+                             self.num_features
+                             )
+            )
         self.W = np.random.uniform(
-            -0.3, 0.3, size=(self.num_hidden_nodes, self.num_hidden_nodes))
+            -0.3, 0.3, size=(self.num_hidden_nodes,
+                             self.num_hidden_nodes
+                             )
+            )
         self.V = np.random.uniform(
-            -0.3, 0.3, size=(self.output_size, self.num_hidden_nodes))
+            -0.3, 0.3, size=(self.output_size,
+                             self.num_hidden_nodes
+                             )
+            )
 
         self.b = np.random.uniform(
-            -0.3, 0.3, size=(self.num_hidden_nodes, 1))
+            -0.3, 0.3, size=(
+                             self.num_hidden_nodes
+                             )
+            )
         self.c = np.random.uniform(
-            -0.3, 0.3, size=(1, self.output_size))
+            -0.3, 0.3, size=(self.output_size
+                             )
+            )
 
         self.parameters = [self.U, self.W, self.V,
                            self.b, self.c]
@@ -534,7 +551,7 @@ _
                                     'b:', self.b.shape,
                                     'c:', self.c.shape}
 
-    def _dispatch_state(self, batch_ix, val=False) -> None:
+    def _dispatch_state(self, val=False) -> None:
         """
         'Dispatches' the states of current batch by swapping out what
         self.states references.
@@ -545,40 +562,26 @@ _
         -------------------------------
         None
         """
-        self.states = self.batch_states[batch_ix]
-        self.current_batch = batch_ix
+        if not val:
+            self.val_states = self.states.copy()
+            self.states = self.train_states
 
         if val:
-            self.states = self.batch_states_val[batch_ix]
-            self.current_batch = -1  # Yes?
+            self.train_states = self.states.copy()
+            self.states = self.val_states
 
     def _init_states(self):
 
-        self.batch_states = [0]*self.num_batches
-
-        for batch_ix in range(self.num_batches):  # OK!
-            xs_init = None
-            hs_init = np.full((self.num_hidden_nodes, 1), 0)
-            ys_init = None
-            init_states = [(xs_init, hs_init, ys_init)]
-            self.batch_states[batch_ix] = init_states
+        xs_init = None
+        hs_init = np.zeros((self.batch_size, self.num_hidden_nodes),
+                           dtype=self.float_size)
+        init_states = [(xs_init, hs_init)]
+        self.train_states = init_states
 
         if self.val:
-            self.batch_states_val = [0]*self.num_batches
+            self.val_states = self.train_states.copy()
 
-            for batch_ix in range(self.num_batches):  # OK!
-                xs_init = None
-                hs_init = np.full((self.num_hidden_nodes, 1), 0)
-                ys_init = None
-                init_states = [(xs_init, hs_init, ys_init)]
-                self.batch_states_val[batch_ix] = init_states
-
-    def _loss(self, y_true, y_pred, epoch, val=False):
-        loss = self._loss_function(y_true, y_pred)
-        self.stats['loss'][epoch] += loss
-        if val:
-            loss = self._loss_function(y_true, y_pred, nograd=True)
-            self.stats['val_loss'][epoch] += np.mean(loss)
+        self.states = self.train_states
 
     def plot_loss(self, plt, figax=None, savepath=None, show=False, val=False):
         # Some config stuff
@@ -587,7 +590,7 @@ _
         else:
             fig, ax = figax
         ax.set_yscale('symlog')
-        #ax.set_yticks([5, 10, 20, 50, 100, 200, 500, 1000])
+        # ax.set_yticks([5, 10, 20, 50, 100, 200, 500, 1000])
         ax.get_yaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
         ax.plot(
                 self.stats['loss'],
