@@ -213,7 +213,7 @@ class RNN:
         return xs, hs, ys
 
     def _backward(self, check=False) -> None:
-        debug = True
+
         deltas_U = np.zeros_like(self.U, dtype=self.float_size)
         deltas_W = np.zeros_like(self.W, dtype=self.float_size)
         deltas_V = np.zeros_like(self.V, dtype=self.float_size)
@@ -471,7 +471,7 @@ _
 
         self.states = [(xs_init, hs_init)]
 
-        xs, hs, seed_out = self._forward(X, debug=True)
+        xs, hs, seed_out = self._forward(X)
         for x_, h_ in zip(xs, hs):
             self.states.append((x_, h_))
 
