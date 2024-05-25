@@ -76,7 +76,6 @@ if train:
         # gradcheck_at=3,
     )
 
-print(word_emb.get_embeddings('There is need for something'))  # this is static
 rnn_batch = load_model('saved_models/test_tf_dataset_m2_rng')
 X_seed = np.array([word_emb.get_embeddings('ROMEO')])
 predict = rnn_batch.predict(X_seed.reshape(-1, 1, X_seed.shape[-1]), time_steps_to_generate=10)
