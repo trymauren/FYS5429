@@ -37,7 +37,7 @@ class RNN:
             **optimiser_params,
             ) -> None:
 
-        np.random.seed(seed)
+        self.rng = np.random.default_rng(seed)
 
         # Setting activation functions, loss function and optimiser
         if not hidden_activation:
@@ -77,7 +77,7 @@ class RNN:
             'other stuff': [],
         }
 
-        self.float_size = np.float64
+        self.float_size = float
 
     def gradient_check(self, x, y, num_backsteps, epsilon=1e-6):
 
@@ -146,7 +146,7 @@ class RNN:
 
     def _generate(self, X_seed, output_probabilities=False):
 
-        def onehot_to_embedding(index):
+        def ix_to_emb(index):
             embedding = self.vocab[index]
             return embedding
 
@@ -162,7 +162,7 @@ class RNN:
             if t < len(X_seed)-1:
                 if output_probabilities:
                     ix = self.probabilities_to_index(y.flatten())
-                    X_seed[t+1] = onehot_to_embedding(ix)
+                    X_seed[t+1] = ix_to_emb(ix)
                 else:
                     X_seed[t+1] = y
         return ys
@@ -176,13 +176,7 @@ class RNN:
         y = self._output_activation(o)
         return a, h, o, y
 
-    def _forward(
-            self,
-            x_sample,
-            nograd=False,
-            output_probabilities=False,
-            debug=False,
-            ) -> None:
+    def _forward(self, x_sample) -> None:
 
         xs = np.zeros((len(x_sample), self.batch_size, self.num_features))
         hs = np.zeros((len(x_sample), self.batch_size, self.num_hidden_nodes))
@@ -198,15 +192,9 @@ class RNN:
 
         return xs, hs, ys
 
-    def _forward_jax(
-            self,
-            x_sample,
-            nograd=False,
-            output_probabilities=False,
-            debug=False,
-            ) -> None:
+    def _forward_jax(self, x_sample) -> None:
 
-        def onehot_to_embedding(index):
+        def ix_to_emb(index):
             embedding = self.vocab[index]
             return embedding
 
@@ -331,8 +319,11 @@ _
         """
         # self.jax_shit_up()
 
-        X = np.array(X, dtype=object)  # object to allow inhomogeneous shape
-        y = np.array(y, dtype=object)  # object to allow inhomogeneous shape
+        if gradcheck_at < epochs:
+            self.float_size = np.float64
+
+        # X = np.array(X, dtype=object)  # object to allow inhomogeneous shape
+        # y = np.array(y, dtype=object)  # object to allow inhomogeneous shape
 
         if X.ndim != 4:
             raise ValueError('Input (X) must have 4 dimensions:\
@@ -381,7 +372,6 @@ _
                 while t_pointer < seq_length:
 
                     self._dispatch_state(val=False)
-
                     pointer_end = t_pointer + num_forwardsteps
                     pointer_end = min(pointer_end, seq_length)
 
@@ -501,7 +491,7 @@ _
             return ys
 
     def probabilities_to_index(self, probabilities):
-        return np.random.choice(range(len(probabilities)), p=probabilities)
+        return self.rng.choice(range(len(probabilities)), p=probabilities)
 
     def _init_weights(self) -> None:
         """
@@ -514,28 +504,28 @@ _
         -------------------------------
         None
         """
-        self.U = np.random.uniform(
+        self.U = self.rng.uniform(
             -0.3, 0.3, size=(self.num_hidden_nodes,
                              self.num_features
                              )
             )
-        self.W = np.random.uniform(
+        self.W = self.rng.uniform(
             -0.3, 0.3, size=(self.num_hidden_nodes,
                              self.num_hidden_nodes
                              )
             )
-        self.V = np.random.uniform(
+        self.V = self.rng.uniform(
             -0.3, 0.3, size=(self.output_size,
                              self.num_hidden_nodes
                              )
             )
 
-        self.b = np.random.uniform(
+        self.b = self.rng.uniform(
             -0.3, 0.3, size=(
                              self.num_hidden_nodes
                              )
             )
-        self.c = np.random.uniform(
+        self.c = self.rng.uniform(
             -0.3, 0.3, size=(self.output_size
                              )
             )
