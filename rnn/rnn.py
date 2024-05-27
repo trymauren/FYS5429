@@ -243,7 +243,7 @@ class RNN:
             grad_o_Cost_t = loss_grad[t]
 
             d_act = self._hidden_activation.grad(self.states[t+1][1])
-
+    
             grad_h_Cost = grad_o_Cost_t @ self.V + prev_grad_h_Cost
             grad_h_Cost_raw = d_act * grad_h_Cost
 
