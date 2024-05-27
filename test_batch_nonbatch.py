@@ -3,7 +3,7 @@ import git
 import numpy as np
 import matplotlib.pyplot as plt
 from rnn.rnn import RNN as RNN
-from rnn.rnn_batch_new import RNN as RNN_parallel
+from rnn.rnn import RNN as RNN_parallel
 path_to_root = git.Repo('.', search_parent_directories=True).working_dir
 sys.path.append(path_to_root)
 
