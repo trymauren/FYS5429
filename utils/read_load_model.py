@@ -5,7 +5,7 @@ path_to_root = git.Repo('.', search_parent_directories=True).working_dir
 sys.path.append(path_to_root)
 
 
-def save_model(estimator, path, fn):
+def save_model(estimator, path):
     """
     Given a trained (or not trained) model, together with the path
     and filename, this function will dump it using pickle
@@ -14,7 +14,7 @@ def save_model(estimator, path, fn):
     TODO: Use something that is safe instead..?
     NOTE: But don't we like a life one the edge?
     """
-    with open(path + '/' + fn, 'wb') as filepointer:
+    with open('../' + path, 'wb') as filepointer:
         pickle.dump(
                     estimator,
                     filepointer,
