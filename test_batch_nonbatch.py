@@ -3,7 +3,7 @@ import git
 import numpy as np
 import matplotlib.pyplot as plt
 from rnn.rnn import RNN as RNN
-from rnn.rnn_batch_new import RNN as RNN_parallel
+from rnn.rnn import RNN as RNN_parallel
 path_to_root = git.Repo('.', search_parent_directories=True).working_dir
 sys.path.append(path_to_root)
 
@@ -30,7 +30,7 @@ hidden_nodes = 30
 num_backsteps = 30
 num_forwardsteps = 30
 learning_rate = 0.001
-optimiser = 'AdaGrad()'
+optimiser = 'Adam()'
 num_batches = 1
 features = 1
 
@@ -80,14 +80,14 @@ hidden_state_batch = rnn_batch.fit(
     num_backsteps=num_backsteps,
     num_forwardsteps=num_forwardsteps,
     # gradcheck_at=10,
-    X_val=X_batched,
-    y_val=y_batched,
+    # X_val=X_batched,
+    # y_val=y_batched,
 )
 seed = X_batched[0, :10, :, :]
-ret = rnn_batch.predict(seed, time_steps_to_generate=1000)
+ret = rnn_batch.predict(seed, time_steps_to_generate=20)
 
 plt.plot(rnn_batch.get_stats()['loss'], label='batch train')
-plt.plot(rnn_batch.get_stats()['val_loss'], label='batch val')
+# plt.plot(rnn_batch.get_stats()['val_loss'], label='batch val')
 
 plt.legend()
 plt.show()
