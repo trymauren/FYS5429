@@ -399,7 +399,7 @@ _
                         x_batch_val = x_sample_val[t_pointer:pointer_end]
                         y_batch_val = y_sample_val[t_pointer:pointer_end]
                         self._dispatch_state(val=self.val)
-                        xs, hs, y_val_pred = self._forward(x_batch_val, nograd=True)
+                        xs, hs, y_val_pred = self._forward(x_batch_val)
                         for x, h in zip(xs, hs):
                             self.states.append((x, h))
                         self._loss(y_batch_val, y_val_pred, e, val=self.val)

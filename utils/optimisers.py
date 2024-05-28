@@ -106,14 +106,16 @@ class Adam(Optimiser):
              learning_rate = .001,
              decay_rate1 = .9,
              decay_rate2 = .999,
-             delta = 1e-8):
-        self.learning_rate = learning_rate
-        self.decay_rate1 = decay_rate1
-        self.decay_rate2 = decay_rate2
+             delta = 1e-8
+            ):
+        self.epsilon = learning_rate
+        self.rho1 = decay_rate1
+        self.rho2 = decay_rate2
         self.delta = delta
 
-        if self.alphas1 is None or self.alphas2 is None:
+        if self.alphas1 is None:
             self.alphas1 = [0]*len(params)
+        if self.alphas2 is None:
             self.alphas2 = [0]*len(params)
         
         self.update  = []
@@ -121,17 +123,17 @@ class Adam(Optimiser):
         
         for idx, param in enumerate(params):
             self.alphas1[idx] = (
-                self.decay_rate1 * self.alphas1[idx]
-                + (1 - self.decay_rate1) * param
+                self.rho1 * self.alphas1[idx]
+                + (1 - self.rho1) * param
             )
             self.alphas2[idx] = (
-                self.decay_rate2 * self.alphas2[idx]
-                + (1 - self.decay_rate2) * np.square(param)
+                self.rho2 * self.alphas2[idx]
+                + (1 - self.rho2) * np.square(param)
             )
-            alpha1_hat = self.alphas1[idx]/(1 - self.decay_rate1**self.t)
-            alpha2_hat = self.alphas2[idx]/(1 - self.decay_rate2**self.t)
+            alpha1_hat = self.alphas1[idx]/(1 - self.rho1**self.t)
+            alpha2_hat = self.alphas2[idx]/(1 - self.rho2**self.t)
             self.update.append(
-                -self.learning_rate * (
+                self.epsilon * (
                     alpha1_hat/(np.sqrt(alpha2_hat) + self.delta)
                 )
             )
