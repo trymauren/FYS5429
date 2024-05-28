@@ -477,7 +477,7 @@ _
             ys = self._generate(last_seed_out, time_steps_to_generate-1, output_probabilities=False)
 
             # appending the last seed output (this is the first truly generated value)
-            ys = np.concatenate((last_seed_out, ys))
+            ys = np.concatenate((last_seed_out.reshape(1, 1, len(last_seed_out)), ys))
 
             seed_out_ret = np.zeros((len(seed_out), self.batch_size, self.num_features))
             if return_seed_out:
