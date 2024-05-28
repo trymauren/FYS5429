@@ -42,7 +42,7 @@ class RNN_1d_regression(nn.Module):
     def fit(self, train_loader, epochs=5, lr=0.01):
 
         criterion = nn.MSELoss(reduction='mean')
-        optimizer = optim.Adagrad(self.parameters(), lr=lr)  # Could use Adam
+        optimizer = optim.Adam(self.parameters(), lr=lr)  # Could use Adam
         self.loss_list = np.zeros(epochs)
 
         for e in tqdm(range(epochs)):
@@ -62,16 +62,18 @@ class RNN_1d_regression(nn.Module):
 
             output, h_state = self(seed_data)  # seed the model (h_state)
             seed_output = output.flatten().numpy()  # for plotting only
-
+            #print(seed_output)
             last_output = output[0][-2:-1]  # extract output at last time-step
+            loop_h_state = h_state[0]
             # the weird slice above is to get correct dimensions
-
+            print(h_state.shape)
             generated_data = []
 
             # ret.append(float(last_output))
 
             for t in range(timesteps):
-                last_output, h_state = self(last_output)
+                last_output, h_state = self(last_output,h_state=loop_h_state)
+                loop_h_state = h_state
                 generated_data.append(float(np.squeeze(last_output)))
 
         return seed_output, generated_data
@@ -104,7 +106,7 @@ if __name__ == "__main__":
     num_seed_values = 3
     hidden_size = 10
     epochs = 300
-    learning_rate = 0.003
+    learning_rate = 0.001
 
     # ------------ Model definition ------------ #
     model = RNN_1d_regression(
@@ -134,7 +136,7 @@ if __name__ == "__main__":
         model.load_state_dict(torch.load('./rnn/torch_sine'))
         # Take the first sample of the training data for seeding
         seed_data = inputs[0:1]
-        seed_output, generated = model.single_predict(seed_data, 20)
+        seed_output, generated = model.single_predict(seed_data, 200)
         concatenated = np.concatenate((seed_output, generated))
         plt.plot(seed_data[0], label='Should have been')
         plt.plot(concatenated, label='generated values')

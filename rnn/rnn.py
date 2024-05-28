@@ -13,6 +13,10 @@ from utils import read_load_model
 from utils.activations import Relu, Tanh, Identity, Softmax
 from utils.loss_functions import Mean_Square_Loss as mse
 from utils.loss_functions import Classification_Logloss as ce
+from utils.optimisers import SGD, SGD_momentum, AdaGrad, RMSProp, Adam
+import jax
+from jax import jit
+import jax.numpy as jnp
 from utils.optimisers import SGD, SGD_momentum, AdaGrad, RMSProp
 
 # path_to_root = git.Repo('.', search_parent_directories=True).working_dir
@@ -401,14 +405,12 @@ _
                     print(f'Train loss increasing, stopping fitting.')
                     break
 
-        read_load_model.save_model(self, 'saved_models/', self.name)
+        read_load_model.save_model(self, self.name)
 
         self.stats['loss'] /= self.num_samples
 
         if self.val:
             self.stats['val_loss'] /= self.num_samples_val
-
-        print('Train complete')
 
         return self.ys, self.states[-1][1]
 
@@ -481,7 +483,7 @@ _
             ys = self._generate(last_seed_out, time_steps_to_generate-1, output_probabilities=False)
 
             # appending the last seed output (this is the first truly generated value)
-            ys = np.concatenate((last_seed_out, ys))
+            ys = np.concatenate((last_seed_out.reshape(1, 1, len(last_seed_out)), ys))
 
             seed_out_ret = np.zeros((len(seed_out), self.batch_size, self.num_features))
             if return_seed_out:
