@@ -80,14 +80,14 @@ hidden_state_batch = rnn_batch.fit(
     num_backsteps=num_backsteps,
     num_forwardsteps=num_forwardsteps,
     # gradcheck_at=10,
-    X_val=X_batched,
-    y_val=y_batched,
+    # X_val=X_batched,
+    # y_val=y_batched,
 )
 seed = X_batched[0, :10, :, :]
-ret = rnn_batch.predict(seed, time_steps_to_generate=1000)
+ret = rnn_batch.predict(seed, time_steps_to_generate=20)
 
 plt.plot(rnn_batch.get_stats()['loss'], label='batch train')
-plt.plot(rnn_batch.get_stats()['val_loss'], label='batch val')
+# plt.plot(rnn_batch.get_stats()['val_loss'], label='batch val')
 
 plt.legend()
 plt.show()
