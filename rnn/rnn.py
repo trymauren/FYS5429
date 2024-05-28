@@ -1,12 +1,11 @@
 import sys
 import os
 import git
+import operator
 import numpy as np
-from tqdm import tqdm
 import matplotlib
 import matplotlib.pyplot as plt
-from pathlib import Path
-from typing import Dict
+from tqdm import tqdm
 from collections.abc import Callable
 from utils import optimisers
 from utils import read_load_model
@@ -14,14 +13,6 @@ from utils.activations import Relu, Tanh, Identity, Softmax
 from utils.loss_functions import Mean_Square_Loss as mse
 from utils.loss_functions import Classification_Logloss as ce
 from utils.optimisers import SGD, SGD_momentum, AdaGrad, RMSProp, Adam
-import jax
-from jax import jit
-import jax.numpy as jnp
-from utils.optimisers import SGD, SGD_momentum, AdaGrad, RMSProp
-
-# path_to_root = git.Repo('.', search_parent_directories=True).working_dir
-# sys.path.append(path_to_root)
-import operator
 
 
 class RNN:
@@ -33,7 +24,6 @@ class RNN:
             loss_function: Callable = None,
             optimiser: Callable = None,
             name: str = 'rnn',
-            config: Dict | Path | str = 'default',
             seed: int = 24,
             clip_threshold: float = 5,
             **optimiser_params,
@@ -68,8 +58,6 @@ class RNN:
         self.b, self.c = None, None
 
         self.xs, self.hs, self.ys = None, None, None
-
-        self.built = False
 
         self.name = name
 
@@ -142,13 +130,12 @@ class RNN:
                     print(f"Index of param in {pname} with correct value: {ix}, value of param: {param[ix]}")
                 it.iternext()
 
-    def ix_to_emb(self, index):
-        embedding = self.vocab[index]
-        return embedding
-
     def _generate(self, x, time_steps_to_generate, output_probabilities=False):
 
-        ys = np.zeros((time_steps_to_generate, self.batch_size, self.num_features), dtype=self.float_size)
+        ys = np.zeros((time_steps_to_generate,
+                       self.batch_size,
+                       self.num_features),
+                      dtype=self.float_size)
 
         last_h = self.states[-1][1].copy()
         last_x = x
@@ -160,7 +147,7 @@ class RNN:
             self.states.append((last_x, h))  # this is not needed
 
             if output_probabilities:
-                ix = self.probabilities_to_index(y.flatten())
+                ix = self.prob_to_ix(y.flatten())
                 outp = self.ix_to_emb(ix)
                 last_x = outp.copy()
                 ys[t] = outp.copy()
@@ -205,7 +192,8 @@ class RNN:
         deltas_b = np.zeros_like(self.b, dtype=self.float_size)
         deltas_c = np.zeros_like(self.c, dtype=self.float_size)
 
-        prev_grad_h_Cost = np.zeros((self.batch_size, self.num_hidden_nodes), dtype=self.float_size)
+        prev_grad_h_Cost = np.zeros((self.batch_size, self.num_hidden_nodes),
+                                    dtype=self.float_size)
 
         loss_grad = self._loss_function.grad()
 
@@ -264,7 +252,7 @@ class RNN:
             - b: batchsize
             - n: number of features (for NLP, this corresponds to number
                                     ´of entries in embedding vector)
-_
+
         y : np.ndarray, shape: m x k
             - Target tensor
             - m: number of samples
@@ -462,17 +450,20 @@ _
         if self.vocab:
 
             # generating values
-            last_y_emb = self.vocab[self.probabilities_to_index(last_seed_out)]
+            last_y_emb = self.vocab[self.prob_to_ix(last_seed_out)]
 
-            ys = self._generate(last_y_emb, time_steps_to_generate-1, output_probabilities=True)
+            ys = self._generate(last_y_emb, time_steps_to_generate-1,
+                                output_probabilities=True)
 
-            ys = np.concatenate((last_y_emb.reshape(1, 1, len(last_y_emb)), ys))
+            last_y_emb = last_y_emb.reshape(1, 1, len(last_y_emb))
+            ys = np.concatenate((last_y_emb, ys))
 
-            seed_out_ret = np.zeros((len(seed_out), self.batch_size, self.num_features))
+            seed_out_ret = np.zeros((len(seed_out), self.batch_size,
+                                     self.num_features))
             if return_seed_out:
                 # loop over timesteps in seed-returns
                 for t in range(len(seed_out_ret)):  # in range timesteps
-                    emb = self.ix_to_emb(self.probabilities_to_index(seed_out[t, -1, :]))
+                    emb = self.ix_to_emb(self.prob_to_ix(seed_out[t, -1, :]))
                     seed_out_ret[t] = emb
 
                 return ys, seed_out_ret
@@ -480,10 +471,12 @@ _
         else:
 
             # generating values
-            ys = self._generate(last_seed_out, time_steps_to_generate-1, output_probabilities=False)
+            ys = self._generate(last_seed_out, time_steps_to_generate-1,
+                                output_probabilities=False)
 
-            # appending the last seed output (this is the first truly generated value)
-            ys = np.concatenate((last_seed_out.reshape(1, 1, len(last_seed_out)), ys))
+            # add the last seed output(this is the first truly generated value)
+            last_seed_out = last_seed_out.reshape(1, 1, len(last_seed_out))
+            ys = np.concatenate((last_seed_out, ys))
 
             seed_out_ret = np.zeros((len(seed_out), self.batch_size, self.num_features))
             if return_seed_out:
@@ -495,7 +488,11 @@ _
 
         return ys
 
-    def probabilities_to_index(self, probabilities):
+    def ix_to_emb(self, index):
+        embedding = self.vocab[index]
+        return embedding
+
+    def prob_to_ix(self, probabilities):
         return self.rng.choice(range(len(probabilities)), p=probabilities)
 
     def _init_weights(self) -> None:
