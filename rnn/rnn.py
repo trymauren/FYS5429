@@ -14,9 +14,7 @@ from utils.activations import Relu, Tanh, Identity, Softmax
 from utils.loss_functions import Mean_Square_Loss as mse
 from utils.loss_functions import Classification_Logloss as ce
 from utils.optimisers import SGD, SGD_momentum, AdaGrad, RMSProp
-import jax
-from jax import jit
-import jax.numpy as jnp
+
 # path_to_root = git.Repo('.', search_parent_directories=True).working_dir
 # sys.path.append(path_to_root)
 import operator
@@ -37,7 +35,7 @@ class RNN:
             **optimiser_params,
             ) -> None:
 
-        np.random.seed(seed)
+        self.rng = np.random.default_rng(seed)
 
         # Setting activation functions, loss function and optimiser
         if not hidden_activation:
@@ -77,7 +75,7 @@ class RNN:
             'other stuff': [],
         }
 
-        self.float_size = np.float64
+        self.float_size = float
 
     def gradient_check(self, x, y, num_backsteps, epsilon=1e-6):
 
@@ -140,31 +138,33 @@ class RNN:
                     print(f"Index of param in {pname} with correct value: {ix}, value of param: {param[ix]}")
                 it.iternext()
 
-    def jax_shit_up(self):
-        self._forward_unit = jit(self._forward_unit)
-        self._forward = jit(self._forward_jax)
+    def ix_to_emb(self, index):
+        embedding = self.vocab[index]
+        return embedding
 
-    def _generate(self, X_seed, output_probabilities=False):
+    def _generate(self, x, time_steps_to_generate, output_probabilities=False):
 
-        def onehot_to_embedding(index):
-            embedding = self.vocab[index]
-            return embedding
-
-        ys = np.zeros((len(X_seed), self.batch_size, self.output_size), dtype=self.float_size)
+        ys = np.zeros((time_steps_to_generate, self.batch_size, self.num_features), dtype=self.float_size)
 
         last_h = self.states[-1][1].copy()
+        last_x = x
 
-        for t in range(len(X_seed)):
-            a, h, o, y = self._forward_unit(X_seed[t], last_h)
+        for t in range(time_steps_to_generate):
+
+            h, y = self._forward_unit(last_x, last_h)
             last_h = h
-            self.states.append((X_seed[t], h))  # this is not needed
-            ys[t] = y
-            if t < len(X_seed)-1:
-                if output_probabilities:
-                    ix = self.probabilities_to_index(y.flatten())
-                    X_seed[t+1] = onehot_to_embedding(ix)
-                else:
-                    X_seed[t+1] = y
+            self.states.append((last_x, h))  # this is not needed
+
+            if output_probabilities:
+                ix = self.probabilities_to_index(y.flatten())
+                outp = self.ix_to_emb(ix)
+                last_x = outp.copy()
+                ys[t] = outp.copy()
+
+            else:
+                ys[t] = y
+                last_x = y
+
         return ys
 
     def _forward_unit(self, x_sample, last_h):
@@ -174,15 +174,9 @@ class RNN:
         h = self._hidden_activation(a)
         o = self.c + h @ self.V.T
         y = self._output_activation(o)
-        return a, h, o, y
+        return h, y
 
-    def _forward(
-            self,
-            x_sample,
-            nograd=False,
-            output_probabilities=False,
-            debug=False,
-            ) -> None:
+    def _forward(self, x_sample) -> None:
 
         xs = np.zeros((len(x_sample), self.batch_size, self.num_features))
         hs = np.zeros((len(x_sample), self.batch_size, self.num_hidden_nodes))
@@ -191,41 +185,15 @@ class RNN:
         h = self.states[-1][1].copy()
 
         for t in range(len(x_sample)):
-            a, h, o, y = self._forward_unit(x_sample[t], h)
+            h, y = self._forward_unit(x_sample[t], h)
             xs[t] = x_sample[t]
             hs[t] = h
             ys[t] = y
 
         return xs, hs, ys
 
-    def _forward_jax(
-            self,
-            x_sample,
-            nograd=False,
-            output_probabilities=False,
-            debug=False,
-            ) -> None:
-
-        def onehot_to_embedding(index):
-            embedding = self.vocab[index]
-            return embedding
-
-        xs = jnp.zeros((len(x_sample), self.batch_size, self.num_features))
-        hs = jnp.zeros((len(x_sample), self.batch_size, self.num_hidden_nodes))
-        ys = jnp.zeros((len(x_sample), self.batch_size, self.output_size))
-
-        h = self.states[-1][1].copy()
-
-        for t in range(len(x_sample)):
-            a, h, o, y = self._forward_unit(x_sample[t], h)
-            xs.at[t].set(x_sample[t])
-            hs.at[t].set(h)
-            ys.at[t].set(y)
-
-        return xs, hs, ys
-
     def _backward(self, check=False) -> None:
-        debug = True
+
         deltas_U = np.zeros_like(self.U, dtype=self.float_size)
         deltas_W = np.zeros_like(self.W, dtype=self.float_size)
         deltas_V = np.zeros_like(self.V, dtype=self.float_size)
@@ -240,17 +208,17 @@ class RNN:
         for t in reversed(range(len(loss_grad))):
             # if self.states[t][0] is None:
             #     break  # reached init state
-            grad_o_Cost_t = loss_grad[t]
+            grad_o_Cost = loss_grad[t]
 
             d_act = self._hidden_activation.grad(self.states[t+1][1])
 
-            grad_h_Cost = grad_o_Cost_t @ self.V + prev_grad_h_Cost
+            grad_h_Cost = grad_o_Cost @ self.V + prev_grad_h_Cost
             grad_h_Cost_raw = d_act * grad_h_Cost
 
-            deltas_V += grad_o_Cost_t.T @ self.states[t+1][1]
+            deltas_V += grad_o_Cost.T @ self.states[t+1][1]
             deltas_W += grad_h_Cost_raw.T @ self.states[t][1]
             deltas_U += grad_h_Cost_raw.T @ self.states[t+1][0]
-            deltas_c += np.sum(grad_o_Cost_t, axis=0)
+            deltas_c += np.sum(grad_o_Cost, axis=0)
             deltas_b += np.sum(grad_h_Cost_raw, axis=0)
             prev_grad_h_Cost = grad_h_Cost_raw @ self.W
 
@@ -274,8 +242,7 @@ class RNN:
             num_forwardsteps: int = 0,
             num_backsteps: int = 0,
             gradcheck_at: int = np.inf,
-            vocab=None,
-            inverse_vocab=None,
+            vocab: dict = None,
             X_val: np.ndarray = None,
             y_val: np.ndarray = None,
             num_epochs_no_update: int = None,
@@ -287,74 +254,75 @@ class RNN:
 
         Parameters:
         -------------------------------
-        X : np.array, shape: m x n
-            - Input sequence, sequence elements may be scalars
-              or vectors.
+        X : np.ndarray, shape: m x b x n
+            - Input tensor
             - m: number of samples
-            - n: number of features (for text, this corresponds to number
+            - s: length of each sample
+            - b: batchsize
+            - n: number of features (for NLP, this corresponds to number
                                     ´of entries in embedding vector)
 _
-        y : np.array, shape: m x 1
-            - Labels
-            - m: equal to n in X    (for text, this corresponds to number
-                                     of entries in embedding vector)
+        y : np.ndarray, shape: m x k
+            - Target tensor
+            - m: number of samples
+            - s: length of each sample
+            - b: batchsize
+            - k: output size (for NLP, this corresponds to number
+                              of entries in target vector)
 
         epochs: int
-            - Number of iterations to train for
-                                    (1 epoch = iterate through all samples
-                                     in X)
+            - Number of iterations over all entries in X
 
-        learning_rate: float,
+        learning_rate: float
 
-        num_hidden_nodes : int
-            - Number of fully connected hidden nodes to add
+        num_hidden_nodes: int
+            - Number of fully connected hidden nodes (hidden size)
 
-        num_backsteps : int
+        num_backsteps: int
             - Number of hidden states to backpropagate through
 
-        return_sequences : bool
-            - Whether to return content of all output states (self.ys)
-              or only the last output states. Shape:
-              If True:
-              shape = (num_hidden_states, time_steps, output_size)
-              If False:
-              shape = (num_hidden_states, output_size)
+        vocab: dict,
+            - If doing NLP, this dict has indices as keys and word-embeddings
+              as values
 
-        return_sequences : bool
-            - Whether to reset initial hidden state between each processed
-              sample in X.
+        X_val: np.ndarray, shape: SAME as X
+            - Passed if model should be validated during training
+
+        y_val: np.ndarray, shape: SAME as y
+            - Passed if model should be validated during training
+
+        num_epochs_no_update: int
+            - If X_val and y_val is passed, this value will determine when
+              to stop training based on >0 change in validation loss
 
         Returns:
         -------------------------------
-        (np.ndarray, np.ndarray) = (output states, hidden state)
+        hidden state: np.ndarray, shape: b x h
+        b: batchsize
+        h: number of hidden nodes (hidden size)
 
         """
-        # self.jax_shit_up()
 
-        X = np.array(X, dtype=object)  # object to allow inhomogeneous shape
-        y = np.array(y, dtype=object)  # object to allow inhomogeneous shape
+        if gradcheck_at < epochs:
+            self.float_size = np.float64
+
+        # X = np.array(X, dtype=object)  # object to allow inhomogeneous shape
+        # y = np.array(y, dtype=object)  # object to allow inhomogeneous shape
 
         if X.ndim != 4:
             raise ValueError('Input (X) must have 4 dimensions:\
-                             Samples x batches x time steps x features')
+                             Samples x sequence length x batches x features')
         if y.ndim != 4:
             raise ValueError('Output (y) must have 4 dimensions:\
-                             Samples x batches x time steps x features')
+                             Samples x sequence length x batches x output size')
 
-        self.num_samples, seq_length, self.batch_size, num_features = X.shape
-        self.num_samples, seq_length, self.batch_size, output_size = y.shape
+        self.num_samples, seq_length, self.batch_size, self.num_features = X.shape
 
-        if not num_forwardsteps:
-            print('Warning: number of forwarsteps is not specified - \
-                processing the whole sequence. This may use some memory \
-                for long sequences')
-            num_forwardsteps = seq_length
+        self.num_samples, seq_length, self.batch_size, self.output_size = y.shape
 
-        self.output_size = output_size
-        self.num_features = num_features
         self.num_hidden_nodes = num_hidden_nodes
         self._init_weights()
-        self.vocab, self.inverse_vocab = vocab, inverse_vocab
+        self.vocab = vocab
         self.stats['loss'] = np.zeros(epochs)
         self.val = False
 
@@ -381,7 +349,6 @@ _
                 while t_pointer < seq_length:
 
                     self._dispatch_state(val=False)
-
                     pointer_end = t_pointer + num_forwardsteps
                     pointer_end = min(pointer_end, seq_length)
 
@@ -409,7 +376,7 @@ _
                         x_batch_val = x_sample_val[t_pointer:pointer_end]
                         y_batch_val = y_sample_val[t_pointer:pointer_end]
                         self._dispatch_state(val=self.val)
-                        xs, hs, y_val_pred = self._forward(x_batch_val, nograd=True)
+                        xs, hs, y_val_pred = self._forward(x_batch_val)
                         for x, h in zip(xs, hs):
                             self.states.append((x, h))
                         self._loss(y_batch_val, y_val_pred, e, val=self.val)
@@ -424,6 +391,12 @@ _
                     early_stop_counter += 1
                 if early_stop_counter == num_epochs_no_update:
                     print(f'Val loss increasing, stopping fitting.')
+                    break
+            else:
+                if self.stats['loss'][e] >= self.stats['loss'][e-1]:
+                    early_stop_counter += 1
+                if early_stop_counter == num_epochs_no_update:
+                    print(f'Train loss increasing, stopping fitting.')
                     break
 
         read_load_model.save_model(self, self.name)
@@ -445,61 +418,79 @@ _
     def predict(
             self,
             X: np.ndarray,
+            hs_init=None,
             time_steps_to_generate: int = 1,
+            return_seed_out=False,
             ) -> np.ndarray:
         """
-        Predicts the next value in a sequence of given inputs to the RNN
-        network
+        Predicts the next value(s) for a primer-sequence specified in X
 
         Parameters:
         -------------------------------
-        X : np.array
+        X : np.ndarray, shape: 1 x 1 x n
         - An X-sample to seed generation of samples
+        n: number of features
 
         Returns:
         -------------------------------
-        np.ndarray
-        - Generated sequence
+        - Generated sequence as np.ndarray, shape: s x 1 x k
+        s: number of timesteps to generate, specified by time_steps_to_generate
+        k: output size
         """
-
-        # if X.ndim > 3 or X.ndim < 2:
-        #     raise ValueError("Input data for X has to be of 3 dimensions:\
-        #                      Samples x time steps x features")
 
         _, self.batch_size, num_features = X.shape
 
-        X_gen = np.zeros((time_steps_to_generate,
-                          self.batch_size,
-                          num_features),
-                         dtype=self.float_size)
-
         xs_init = None
-        hs_init = np.zeros((self.batch_size, self.num_hidden_nodes),
-                           dtype=self.float_size)
+        if hs_init is None:
+            hs_init = np.zeros((self.batch_size, self.num_hidden_nodes),
+                               dtype=self.float_size)
 
         self.states = [(xs_init, hs_init)]
 
-        xs, hs, seed_out = self._forward(X, debug=True)
+        xs, hs, seed_out = self._forward(X)
+        last_seed_out = seed_out[-1, -1, :]
+
         for x_, h_ in zip(xs, hs):
             self.states.append((x_, h_))
 
         if self.vocab:
-            last_y_emb = self.vocab[self.probabilities_to_index(
-                seed_out[-1, -1, :])]
 
-            X_gen[0] = last_y_emb
-            ys = self._generate(X_gen, output_probabilities=True)
+            # generating values
+            last_y_emb = self.vocab[self.probabilities_to_index(last_seed_out)]
 
-            return [self.vocab[self.probabilities_to_index(
-                y.flatten())] for y in ys]
+            ys = self._generate(last_y_emb, time_steps_to_generate-1, output_probabilities=True)
+
+            ys = np.concatenate((last_y_emb.reshape(1, 1, len(last_y_emb)), ys))
+
+            seed_out_ret = np.zeros((len(seed_out), self.batch_size, self.num_features))
+            if return_seed_out:
+                # loop over timesteps in seed-returns
+                for t in range(len(seed_out_ret)):  # in range timesteps
+                    emb = self.ix_to_emb(self.probabilities_to_index(seed_out[t, -1, :]))
+                    seed_out_ret[t] = emb
+
+                return ys, seed_out_ret
 
         else:
-            X_gen[0] = seed_out[-1][-1]  # this may not be robust
-            ys = self._generate(X_gen, output_probabilities=False)
-            return ys
+
+            # generating values
+            ys = self._generate(last_seed_out, time_steps_to_generate-1, output_probabilities=False)
+
+            # appending the last seed output (this is the first truly generated value)
+            ys = np.concatenate((last_seed_out, ys))
+
+            seed_out_ret = np.zeros((len(seed_out), self.batch_size, self.num_features))
+            if return_seed_out:
+                # loop over timesteps in seed-returns
+                for t in range(len(seed_out_ret)):  # in range timesteps
+                    out = seed_out[t, -1, :]
+                    seed_out_ret[t] = out
+                return ys, seed_out_ret
+
+        return ys
 
     def probabilities_to_index(self, probabilities):
-        return np.random.choice(range(len(probabilities)), p=probabilities)
+        return self.rng.choice(range(len(probabilities)), p=probabilities)
 
     def _init_weights(self) -> None:
         """
@@ -508,32 +499,33 @@ _
         Parameters:
         -------------------------------
         None
+
         Returns:
         -------------------------------
         None
         """
-        self.U = np.random.uniform(
+        self.U = self.rng.uniform(
             -0.3, 0.3, size=(self.num_hidden_nodes,
                              self.num_features
                              )
             )
-        self.W = np.random.uniform(
+        self.W = self.rng.uniform(
             -0.3, 0.3, size=(self.num_hidden_nodes,
                              self.num_hidden_nodes
                              )
             )
-        self.V = np.random.uniform(
+        self.V = self.rng.uniform(
             -0.3, 0.3, size=(self.output_size,
                              self.num_hidden_nodes
                              )
             )
 
-        self.b = np.random.uniform(
+        self.b = self.rng.uniform(
             -0.3, 0.3, size=(
                              self.num_hidden_nodes
                              )
             )
-        self.c = np.random.uniform(
+        self.c = self.rng.uniform(
             -0.3, 0.3, size=(self.output_size
                              )
             )
@@ -551,7 +543,7 @@ _
 
     def _dispatch_state(self, val=False) -> None:
         """
-        'Dispatches' the states of current batch by swapping out what
+        'Dispatches' the states of validation/training by swapping out what
         self.states references.
         Parameters:
         -------------------------------
@@ -569,7 +561,16 @@ _
             self.states = self.val_states
 
     def _init_states(self):
+        """
+        Initialises the state memory.
+        Parameters:
+        -------------------------------
+        None
 
+        Returns:
+        -------------------------------
+        None
+        """
         xs_init = None
         hs_init = np.zeros((self.batch_size, self.num_hidden_nodes),
                            dtype=self.float_size)
@@ -582,7 +583,7 @@ _
         self.states = self.train_states
 
     def plot_loss(self, plt, figax=None, savepath=None, show=False, val=False):
-        # Some config stuff
+
         if figax is None:
             fig, ax = plt.subplots()
         else:

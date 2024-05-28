@@ -26,13 +26,13 @@ class Mean_Square_Loss(LossFunction):
         self.y_true = None
 
     def eval(self, y_true, y_pred, nograd=False):
-        y_true = jnp.array(y_true, dtype=jnp.float64)
-        y_pred = jnp.array(y_pred, dtype=jnp.float64)
+
         if not nograd:
             self.y_pred = y_pred.copy()
             self.y_true = y_true.copy()
-        loss = self.jax_loss(y_true, y_pred)
-        return np.asarray(loss, dtype=y_pred.dtype)
+
+        loss = np.square(np.subtract(y_true, y_pred)).mean(dtype=y_pred.dtype)
+        return loss
 
     def grad(self):
 
@@ -46,13 +46,13 @@ class Mean_Square_Loss(LossFunction):
         # grad = grad.mean(axis=1)  # comment in to use reduction
         return grad
 
-    def jax_loss(self, y_true, y_pred):
-        return jnp.square(jnp.subtract(y_true, y_pred)).mean(dtype=y_pred.dtype)
+    # def jax_loss(self, y_true, y_pred):
+    #     return jnp.square(jnp.subtract(y_true, y_pred)).mean(dtype=y_pred.dtype)
 
-    def grad_2(self):
+    # def grad_2(self):
 
-        grad = jax.grad(self.jax_loss, argnums=0)
-        return grad(self.y_true, self.y_pred)
+    #     grad = jax.grad(self.jax_loss, argnums=0)
+    #     return grad(self.y_true, self.y_pred)
 
 
 class Classification_Logloss(LossFunction):
