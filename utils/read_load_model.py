@@ -14,7 +14,7 @@ def save_model(estimator, path):
     TODO: Use something that is safe instead..?
     NOTE: But don't we like a life one the edge?
     """
-    with open('../' + path, 'wb') as filepointer:
+    with open(path, 'wb') as filepointer:
         pickle.dump(
                     estimator,
                     filepointer,
