@@ -12,12 +12,12 @@ import resource
 path_to_root = git.Repo('.', search_parent_directories=True).working_dir
 sys.path.append(path_to_root)
 
-epo = 3
+epo = 1000
 hidden_nodes = 1200
-unrolling_steps = 25
+unrolling_steps = 50
 learning_rate = 0.01
-optimiser = 'AdaGrad()'
-num_batches = 64
+optimiser = 'Adam()'
+num_batches = 32
 
 word_emb = WORD_EMBEDDING()
 text_data = text_proc.read_file("data/harry_potter.txt")
@@ -56,7 +56,7 @@ if train:
         optimiser=optimiser,
         clip_threshold=1,
         learning_rate=learning_rate,
-        name='harry_potter_test_2'
+        name='saved_models/harry_potter_fox_test'
         )
 
     hidden_state_batch = rnn_batch.fit(
@@ -69,6 +69,11 @@ if train:
         # num_epochs_no_update=200,
         # gradcheck_at=3,
     )
+
+bytes_usage_peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+gb_usage_peak = round(bytes_usage_peak/1000000000, 3)
+print('Memory consumption (peak):')
+print(gb_usage_peak, 'GB')
 
 rnn_batch = load_model('saved_models/harry_potter_test_2')
 seed_str = 'Harry potter'
@@ -94,7 +99,3 @@ print(pre_str + generated_string)
 # plt.legend()
 # plt.show()
 
-bytes_usage_peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-gb_usage_peak = round(bytes_usage_peak/1000000000, 3)
-print('Memory consumption (peak):')
-print(gb_usage_peak, 'GB')
