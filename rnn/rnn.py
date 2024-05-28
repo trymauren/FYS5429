@@ -426,14 +426,12 @@ _
                     print(f'Val loss increasing, stopping fitting.')
                     break
 
-        read_load_model.save_model(self, 'saved_models/', self.name)
+        read_load_model.save_model(self, self.name)
 
         self.stats['loss'] /= self.num_samples
 
         if self.val:
             self.stats['val_loss'] /= self.num_samples_val
-
-        print('Train complete')
 
         return self.ys, self.states[-1][1]
 
