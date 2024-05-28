@@ -39,14 +39,14 @@ time_steps_to_predict = seq_length - seed_length
 
 epo = 5
 hidden_nodes = [2,10,20,30,40,50,60]  # < 40 hidden_nodes is not able to capture periodicity
-
-num_backsteps = seq_length
+#hidden_nodes = [10, 20]
+unrolling_steps = seq_length
 
 learning_rates = [0.001,0.003,0.005,0.007,0.009]
-#learning_rates = [0.004]
+#learning_rates = [0.004, 0.008]
 
 optimisers = ['AdaGrad()', 'SGD()', 'SGD_momentum()', 'Adam()']
-#optimisers = ['Adam()']
+#optimisers = ['AdaGrad()', 'Adam()']
 num_batches = 1
 
 train = True
@@ -178,7 +178,7 @@ for num_hidden_nodes in hidden_nodes:
                     optimiser=optimiser,
                     clip_threshold=1,
                     learning_rate=learning_rate_curr,
-                    name=f'./run-sine/saved_models/pretrained_rnn_{optimiser.split("()")[0]}_{learning_rate_curr}',
+                    #name=f'./run-sine/saved_models/pretrained_rnn_{optimiser.split("()")[0]}_{learning_rate_curr}',
                     #decay_rate1 = .009,
                     #decay_rate2 = .00999
                     )
@@ -188,8 +188,7 @@ for num_hidden_nodes in hidden_nodes:
                     y,
                     epo,
                     num_hidden_nodes=num_hidden_nodes,
-                    num_backsteps=num_backsteps,
-                    num_forwardsteps=num_backsteps,
+                    unrolling_steps=unrolling_steps,
                     # X_val=X_val_batch,
                     # y_val=y_val_batch,
                 )
@@ -209,14 +208,13 @@ for num_hidden_nodes in hidden_nodes:
                 ax_loss = fig_loss.add_subplot(n_rows, 2, i + 1)
                 ax_loss.plot(torch_rnn.loss_list, label='Torch model')
 
-                torch.save(torch_rnn.state_dict(), f'./saved_models/pretrained_torch_rnn_{optimiser.split("()")[0]}_{learning_rate_curr}')
+                #torch.save(torch_rnn.state_dict(), f'./saved_models/pretrained_torch_rnn_{optimiser.split("()")[0]}_{learning_rate_curr}')
 
                 s = f'Sine_train_loss_{learning_rate_curr}.svg'
                 rnn.plot_loss(plt, figax=(fig_loss, ax_loss), show=False, val=True)
 
                 ax_loss.set_title(f'Learning rate: {learning_rate_curr}')
 
-                fig_loss.savefig(f'./saved_figs/loss_results_{optimiser.split("()")[0]}_{learning_rate_curr}_{num_hidden_nodes}.svg')
 
             if infer:
 
@@ -277,9 +275,9 @@ for num_hidden_nodes in hidden_nodes:
                 # ax_pred.set_yticks(y_ticks_pos, labels=y_ticks_acc)
                 ax_pred.set_title(f'Learning rate : {learning_rate_curr}')
 
-                fig_pred.savefig(f'saved_figs/pred_results_{optimiser.split("()")[0]}_{learning_rate_curr}_{num_hidden_nodes}.svg')
 
-
+        fig_loss.savefig(f'./saved_figs/loss_results_{optimiser.split("()")[0]}_{num_hidden_nodes}.svg')
+        fig_pred.savefig(f'saved_figs/pred_results_{optimiser.split("()")[0]}_{num_hidden_nodes}.svg')
         # fig_loss.savefig(f'Sine_train_loss_{learning_rate_curr}.svg')
         # fig_pred.savefig(f'Sine_pred_{learning_rate_curr}.svg')
         print(f'Execution time {datetime.now() - start_time}')

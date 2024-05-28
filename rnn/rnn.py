@@ -599,14 +599,14 @@ _
         ax.get_yaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
         ax.plot(
                 self.stats['loss'],
-                label=str(self._optimiser.__class__.__name__),
+                label='Numpy model',
                 alpha=1,
                 linestyle='solid')
         if val:
             if self.val:
                 ax.plot(
                         self.stats['val_loss'],
-                        label=str(self._optimiser.__class__.__name__) + '_val',
+                        label='Numpy model val',
                         alpha=1,
                         linestyle='dotted')
             else:
