@@ -77,7 +77,7 @@ class RNN:
 
         self.float_size = float
 
-    def gradient_check(self, x, y, num_backsteps, epsilon=1e-6):
+    def gradient_check(self, x, y, unrolling_steps, epsilon=1e-6):
 
         stored_states = self.states.copy()
         xs, hs, y_pred = self._forward(x)
@@ -86,7 +86,7 @@ class RNN:
 
         loss = self._loss_function(y, y_pred)
 
-        while len(self.states) > num_backsteps + 1:
+        while len(self.states) > unrolling_steps + 1:
             del self.states[0]
 
         analytical_grad = self._backward(check=True)
@@ -239,8 +239,7 @@ class RNN:
             y: np.ndarray = None,
             epochs: int = None,
             num_hidden_nodes: int = 5,
-            num_forwardsteps: int = 0,
-            num_backsteps: int = 0,
+            unrolling_steps: int = 0,
             gradcheck_at: int = np.inf,
             vocab: dict = None,
             X_val: np.ndarray = None,
@@ -278,8 +277,8 @@ _
         num_hidden_nodes: int
             - Number of fully connected hidden nodes (hidden size)
 
-        num_backsteps: int
-            - Number of hidden states to backpropagate through
+        unrolling_steps: int
+            - Number of hidden states to forward and backpropagate through
 
         vocab: dict,
             - If doing NLP, this dict has indices as keys and word-embeddings
@@ -349,21 +348,21 @@ _
                 while t_pointer < seq_length:
 
                     self._dispatch_state(val=False)
-                    pointer_end = t_pointer + num_forwardsteps
+                    pointer_end = t_pointer + unrolling_steps
                     pointer_end = min(pointer_end, seq_length)
 
                     x_batch = x_sample[t_pointer:pointer_end]
                     y_batch = y_sample[t_pointer:pointer_end]
 
                     if e == gradcheck_at:
-                        self.gradient_check(x_batch, y_batch, num_backsteps)
+                        self.gradient_check(x_batch, y_batch, unrolling_steps)
 
                     xs, hs, y_pred = self._forward(x_batch)
 
                     for x, h in zip(xs, hs):
                         self.states.append((x, h))
 
-                    while len(self.states) > num_backsteps + 1:
+                    while len(self.states) > unrolling_steps + 1:
                         del self.states[0]
 
                     self._loss(y_batch, y_pred, e)
@@ -381,7 +380,7 @@ _
                             self.states.append((x, h))
                         self._loss(y_batch_val, y_val_pred, e, val=self.val)
 
-                    t_pointer += num_forwardsteps
+                    t_pointer += unrolling_steps
 
                     for param, step in zip(self.parameters, steps):
                         param -= step
@@ -389,12 +388,15 @@ _
             if self.val:
                 if self.stats['val_loss'][e] >= self.stats['val_loss'][e-1]:
                     early_stop_counter += 1
+
                 if early_stop_counter == num_epochs_no_update:
                     print(f'Val loss increasing, stopping fitting.')
                     break
+
             else:
                 if self.stats['loss'][e] >= self.stats['loss'][e-1]:
                     early_stop_counter += 1
+
                 if early_stop_counter == num_epochs_no_update:
                     print(f'Train loss increasing, stopping fitting.')
                     break
