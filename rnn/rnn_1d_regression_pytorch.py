@@ -106,7 +106,7 @@ if __name__ == "__main__":
     num_seed_values = 3
     hidden_size = 10
     epochs = 300
-    learning_rate = 0.003
+    learning_rate = 0.001
 
     # ------------ Model definition ------------ #
     model = RNN_1d_regression(

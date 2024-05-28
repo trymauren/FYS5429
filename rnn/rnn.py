@@ -13,6 +13,10 @@ from utils import read_load_model
 from utils.activations import Relu, Tanh, Identity, Softmax
 from utils.loss_functions import Mean_Square_Loss as mse
 from utils.loss_functions import Classification_Logloss as ce
+from utils.optimisers import SGD, SGD_momentum, AdaGrad, RMSProp, Adam
+import jax
+from jax import jit
+import jax.numpy as jnp
 from utils.optimisers import SGD, SGD_momentum, AdaGrad, RMSProp
 
 # path_to_root = git.Repo('.', search_parent_directories=True).working_dir
