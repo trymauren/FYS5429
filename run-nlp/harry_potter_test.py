@@ -100,4 +100,3 @@ print(pre_str + generated_string)
 # plt.plot(rnn_batch.get_stats()['loss'], label='batch train')
 # plt.legend()
 # plt.show()
-
