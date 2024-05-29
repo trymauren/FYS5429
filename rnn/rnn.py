@@ -12,7 +12,6 @@ from utils import read_load_model
 from utils.activations import Relu, Tanh, Identity, Softmax
 from utils.loss_functions import Mean_Square_Loss as mse
 from utils.loss_functions import Classification_Logloss as ce
-from utils.loss_functions import Classification_Logloss_int as ce_int
 from utils.optimisers import SGD, SGD_momentum, AdaGrad, RMSProp, Adam
 
 
