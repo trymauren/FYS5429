@@ -144,21 +144,20 @@ class WORD_EMBEDDING():
         return x, y
 
 
-def create_onehot(str_to_convert: str, char_to_ix: dict):
+def create_onehot(ixs: str, char_to_ix: dict):
     """
     Converts a string of text into an array of onehot-encoded arrays
 
     Parameters:
     ---------------------------
-        str_to_convert : str
+        ixs : container with indices
 
     Returns:
     ---------------------------
         X : np.ndarray, shape: (str_to_convert, 1, len(char_to_ix))
     """
 
-    X = np.zeros((len(str_to_convert), 1, len(char_to_ix)))
-    ixs = [char_to_ix[char] for char in str_to_convert]
+    X = np.zeros((len(ixs), 1, len(char_to_ix)))
 
     for t in range(len(ixs)):
         inp = (np.zeros((len(char_to_ix), 1)))
