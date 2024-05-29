@@ -144,6 +144,37 @@ class WORD_EMBEDDING():
         return x, y
 
 
+def create_onehot(str_to_convert: str, char_to_ix: dict):
+    """
+    Converts a string of text into an array of onehot-encoded arrays
+
+    Parameters:
+    ---------------------------
+        str_to_convert : str
+
+    Returns:
+    ---------------------------
+        X : np.ndarray, shape: (str_to_convert, 1, len(char_to_ix))
+    """
+
+    X = np.zeros((len(str_to_convert), 1, len(char_to_ix)))
+    ixs = [char_to_ix[char] for char in str_to_convert]
+
+    for t in range(len(ixs)):
+        inp = (np.zeros((len(char_to_ix), 1)))
+        inp[ixs[t]] = 1
+        X[t] = inp.T
+
+    return X
+
+
+def onehot_to_ix(onehot):
+    """
+    Returns the index of the 1 from a onehot-array, along the given axis
+    """
+    return onehot.argmax()
+
+
 # if __name__ == "__main__":
 #     res = read_file("embedding_test.txt", 5)
 #     print(res)
