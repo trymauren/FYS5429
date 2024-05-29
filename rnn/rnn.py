@@ -12,6 +12,7 @@ from utils import read_load_model
 from utils.activations import Relu, Tanh, Identity, Softmax
 from utils.loss_functions import Mean_Square_Loss as mse
 from utils.loss_functions import Classification_Logloss as ce
+from utils.loss_functions import Classification_Logloss_int as ce_int
 from utils.optimisers import SGD, SGD_momentum, AdaGrad, RMSProp, Adam
 
 
@@ -130,7 +131,12 @@ class RNN:
                     print(f"Index of param in {pname} with correct value: {ix}, value of param: {param[ix]}")
                 it.iternext()
 
-    def _generate(self, x, time_steps_to_generate, output_probabilities=False):
+    def _generate(self,
+                  x,
+                  time_steps_to_generate,
+                  output_probabilities=False,
+                  onehot=False
+                  ):
 
         ys = np.zeros((time_steps_to_generate,
                        self.batch_size,
@@ -144,11 +150,19 @@ class RNN:
 
             h, y = self._forward_unit(last_x, last_h)
             last_h = h
+
             self.states.append((last_x, h))  # this is not needed
 
             if output_probabilities:
                 ix = self.prob_to_ix(y.flatten())
-                outp = self.ix_to_emb(ix)
+                if onehot:
+                    outp = np.zeros((len(self.vocab), 1))
+                    outp[ix] = 1
+                    outp = outp.T
+
+                else:
+                    outp = self.ix_to_emb(ix)  # COMMENT IN FOR EMB
+
                 last_x = outp.copy()
                 ys[t] = outp.copy()
 
@@ -311,6 +325,9 @@ class RNN:
 
         self.num_samples, seq_length, self.batch_size, self.output_size = y.shape
 
+        if seq_length > unrolling_steps:  # if unrolling_steps is not given
+            unrolling_steps = seq_length
+
         self.num_hidden_nodes = num_hidden_nodes
         self._init_weights()
         self.vocab = vocab
@@ -415,6 +432,7 @@ class RNN:
             hs_init=None,
             time_steps_to_generate: int = 1,
             return_seed_out=False,
+            onehot=False,
             ) -> np.ndarray:
         """
         Predicts the next value(s) for a primer-sequence specified in X
@@ -431,7 +449,6 @@ class RNN:
         s: number of timesteps to generate, specified by time_steps_to_generate
         k: output size
         """
-
         _, self.batch_size, num_features = X.shape
 
         xs_init = None
@@ -442,6 +459,7 @@ class RNN:
         self.states = [(xs_init, hs_init)]
 
         xs, hs, seed_out = self._forward(X)
+
         last_seed_out = seed_out[-1, -1, :]
 
         for x_, h_ in zip(xs, hs):
@@ -450,13 +468,29 @@ class RNN:
         if self.vocab:
 
             # generating values
-            last_y_emb = self.vocab[self.prob_to_ix(last_seed_out)]
+            if onehot:
+                ix = self.prob_to_ix(last_seed_out)
+
+                temp = np.zeros((1, len(last_seed_out)))
+
+                temp[0, ix] = 1
+
+                last_y_emb = temp
+
+            else:
+
+                last_y_emb = self.vocab[self.prob_to_ix(last_seed_out)]
 
             ys = self._generate(last_y_emb, time_steps_to_generate-1,
-                                output_probabilities=True)
+                                output_probabilities=True, onehot=onehot)
 
-            last_y_emb = last_y_emb.reshape(1, 1, len(last_y_emb))
-            ys = np.concatenate((last_y_emb, ys))
+            if onehot:
+                last_y_emb = last_y_emb.reshape(1, 1, last_y_emb.size)
+                ys = np.concatenate((last_y_emb, ys))
+
+            else:
+                last_y_emb = last_y_emb.reshape(1, 1, len(last_y_emb))
+                ys = np.concatenate((last_y_emb, ys))
 
             seed_out_ret = np.zeros((len(seed_out), self.batch_size,
                                      self.num_features))
