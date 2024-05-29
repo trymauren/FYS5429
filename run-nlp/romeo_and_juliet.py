@@ -77,8 +77,8 @@ if train:
         plt.plot(rnn.get_stats()['loss'], label=f'Hidden size: {hidden_nodes}')
         plt.title('Loss over epochs for "Romeo and Juliet"')
         plt.legend()
-        # plt.savefig(path_to_root + '/run-nlp/saved_figs/romeo_and_juliet/experiment.svg')
-        plt.show()
+        plt.savefig(path_to_root + f'/run-nlp/saved_figs/romeo_and_juliet/experiment_{hidden_nodes}_nodes.svg')
+        # plt.show()
 
 if infer:
 
