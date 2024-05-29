@@ -40,7 +40,7 @@ print('Shape of X after batching:', X.shape)
 print('Shape of y after batching:', y.shape)
 
 
-savepath = path_to_root + '/run-nlp/saved_models/romeo_and_juliet'
+savepath = path_to_root + '/run-nlp/saved_models/romeo_and_juliet/romeo_and_juliet'
 
 train = True
 infer = True
@@ -50,7 +50,7 @@ hidden_nodes_config = [30]
 
 if train:
 
-    epo = 1000
+    epo = 1
     learning_rate = 0.001
     optimiser = 'Adam()'
 
@@ -77,7 +77,7 @@ if train:
         plt.plot(rnn.get_stats()['loss'], label=f'Hidden size: {hidden_nodes}')
         plt.title('Loss over epochs for "Romeo and Juliet"')
         plt.legend()
-        plt.savefig(path_to_root + f'/run-nlp/saved_figs/romeo_and_juliet/experiment_{hidden_nodes}_nodes.svg')
+        plt.savefig(path_to_root + f'/run-nlp/saved_figs/romeo_and_juliet/romeo_and_juliet_{hidden_nodes}_nodes.svg')
         # plt.show()
 
 if infer:
