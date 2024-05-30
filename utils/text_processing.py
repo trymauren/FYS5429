@@ -21,6 +21,7 @@ def read_file(filename : str) -> np.ndarray:
     windowed_text = []
     with open(filename, 'r') as f:
         text = f.read()
+        text = text.replace("\n", "")
         len_chars = sum(len(word) for word in text.strip().split())
         if len_chars > 100000:
             text = text[:50000]

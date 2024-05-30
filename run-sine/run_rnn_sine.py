@@ -29,7 +29,6 @@ from torch.utils.data import DataLoader, TensorDataset
 seq_length = 200
 examples = 10
 
-
 ########################################################################
 ########################### Prediction #################################
 ########################################################################
@@ -37,16 +36,16 @@ examples = 10
 seed_length = 10
 time_steps_to_predict = seq_length - seed_length
 
-epo = 5
-hidden_nodes = [2,10,20,30,40,50,60]  # < 40 hidden_nodes is not able to capture periodicity
-#hidden_nodes = [10, 20]
+epo = 500
+#hidden_nodes = [2,10,20,40,50]  # < 40 hidden_nodes is not able to capture periodicity
+hidden_nodes = [2, 10]
 unrolling_steps = seq_length
 
 learning_rates = [0.001,0.003,0.005,0.007,0.009]
 #learning_rates = [0.004, 0.008]
 
-optimisers = ['AdaGrad()', 'SGD()', 'SGD_momentum()', 'Adam()']
-#optimisers = ['AdaGrad()', 'Adam()']
+#optimisers = ['AdaGrad()', 'SGD()', 'SGD_momentum()', 'Adam()']
+optimisers = ['Adam()']
 num_batches = 1
 
 train = True
@@ -71,6 +70,20 @@ def create_sines(examples=10, seq_length=100):
         #         np.linspace(0, 8*np.pi, seq_length+1))]
         #     ).T
         #example_x = np.sin(np.linspace(0, 8*np.pi, seq_length+1))
+        X.append(example_x[0:-1])
+        y.append(example_x[1:])
+
+    return np.array(X), np.array(y)
+
+rng = np.random.default_rng(14)
+def create_noisy_sines(examples=10, seq_length=100):
+    X = []
+    y = []
+    for _ in range(examples):
+        example_x = np.array(
+            [np.sin(rng.normal(0,0.2,seq_length + 1) +
+                np.linspace(0, 8*np.pi, seq_length + 1))]
+            ).T
         X.append(example_x[0:-1])
         y.append(example_x[1:])
 
@@ -123,6 +136,10 @@ def create_sines(examples=10, seq_length=100):
 start_time = datetime.now()
 
 X, y = create_sines(examples=examples, seq_length=seq_length)
+print(X.shape)
+for sine in X:
+    plt.plot(sine[:])
+plt.show()
 
 torch_inputs = torch.tensor(X, dtype=torch.float32)
 torch_targets = torch.tensor(y, dtype=torch.float32)  # No squeeze needed
@@ -156,12 +173,12 @@ for num_hidden_nodes in hidden_nodes:
 
         #fig_loss, axs_loss = plt.subplots(np.ceil(len(optimisers)/2), 2)
         #fig_pred, axs_pred = plt.subplots(np.ceil(len(optimisers)/2), 2)
-            fig_loss = plt.figure()
+            fig_loss = plt.figure()#figsize = (8, 7))
             fig_loss.suptitle(f'Loss | Optimiser: {optimiser.split("()")[0]} | Hidden nodes: {num_hidden_nodes}')
 
-
-        fig_pred = plt.figure()
-        fig_pred.suptitle(f'Predictions | Optimiser: {optimiser.split("()")[0]} | Hidden nodes: {num_hidden_nodes}')
+        if infer:
+            fig_pred = plt.figure()#figsize = (8, 7))
+            fig_pred.suptitle(f'Predictions | Optimiser: {optimiser.split("()")[0]} | Hidden nodes: {num_hidden_nodes}')
 
         # y_ticks_pos = [2]
         # y_ticks_acc = ['Error']
@@ -178,7 +195,7 @@ for num_hidden_nodes in hidden_nodes:
                     optimiser=optimiser,
                     clip_threshold=1,
                     learning_rate=learning_rate_curr,
-                    #name=f'./run-sine/saved_models/pretrained_rnn_{optimiser.split("()")[0]}_{learning_rate_curr}',
+                    name=f'{path_to_root}/run-sine/saved_models/pretrained_rnn_{optimiser.split("()")[0]}_{learning_rate_curr}',
                     #decay_rate1 = .009,
                     #decay_rate2 = .00999
                     )
@@ -207,18 +224,22 @@ for num_hidden_nodes in hidden_nodes:
                 
                 ax_loss = fig_loss.add_subplot(n_rows, 2, i + 1)
                 ax_loss.plot(torch_rnn.loss_list, label='Torch model')
+                #ax_loss.set_ylim(0,10)
 
-                #torch.save(torch_rnn.state_dict(), f'./saved_models/pretrained_torch_rnn_{optimiser.split("()")[0]}_{learning_rate_curr}')
+                torch.save(torch_rnn.state_dict(), f'{path_to_root}/run-sine/saved_models/pretrained_torch_rnn_{optimiser.split("()")[0]}_{learning_rate_curr}')
 
                 s = f'Sine_train_loss_{learning_rate_curr}.svg'
                 rnn.plot_loss(plt, figax=(fig_loss, ax_loss), show=False, val=True)
-
+                ax_loss.set_ymargin(0.0)
                 ax_loss.set_title(f'Learning rate: {learning_rate_curr}')
+                ax_loss.get_legend().remove()
+                handles, labels = ax_loss.get_legend_handles_labels()
+                fig_loss.legend(handles, labels, loc='lower right')
 
 
             if infer:
 
-                rnn = load_model(f'./saved_models/pretrained_rnn_{optimiser.split("()")[0]}_{learning_rate_curr}')
+                rnn = load_model(f'{path_to_root}/run-sine/saved_models/pretrained_rnn_{optimiser.split("()")[0]}_{learning_rate_curr}')
                 print(X_seed.shape)
                 predict,y_seed_out = rnn.predict(X_seed,
                                     time_steps_to_generate=
@@ -248,7 +269,7 @@ for num_hidden_nodes in hidden_nodes:
                             hidden_size=num_hidden_nodes,
                             output_size=1
                         )
-                torch_rnn.load_state_dict(torch.load(f'./saved_models/pretrained_torch_rnn_{optimiser.split("()")[0]}_{learning_rate_curr}'))
+                torch_rnn.load_state_dict(torch.load(f'{path_to_root}/run-sine//saved_models/pretrained_torch_rnn_{optimiser.split("()")[0]}_{learning_rate_curr}'))
                 
                 # Take the first sample of the training data for seeding
                 seed_data = torch_val_inputs[0:1,0:3]
@@ -271,13 +292,20 @@ for num_hidden_nodes in hidden_nodes:
                 #y_plot_line = np.concatenate(([np.nan],y_val[0].squeeze()))
                 y_plot_line = y_val[0].squeeze()
                 ax_pred.plot(y_plot_line, label="True")
-                ax_pred.legend()
+                #ax_pred.legend()
                 # ax_pred.set_yticks(y_ticks_pos, labels=y_ticks_acc)
                 ax_pred.set_title(f'Learning rate : {learning_rate_curr}')
+                handles, labels = ax_pred.get_legend_handles_labels()
+                fig_pred.legend(handles, labels, loc='lower right')
 
+        #fig_loss.subplots_adjust(hspace=0.5)
+        #fig_pred.subplots_adjust(hspace=0.5)
 
-        fig_loss.savefig(f'./saved_figs/loss_results_{optimiser.split("()")[0]}_{num_hidden_nodes}.svg')
-        fig_pred.savefig(f'saved_figs/pred_results_{optimiser.split("()")[0]}_{num_hidden_nodes}.svg')
+        fig_loss.set_layout_engine('tight')
+        fig_pred.set_layout_engine('tight')
+
+        fig_loss.savefig(f'{path_to_root}/run-sine/saved_figs/loss_results_{optimiser.split("()")[0]}_{num_hidden_nodes}.svg')
+        fig_pred.savefig(f'{path_to_root}/run-sine/saved_figs/pred_results_{optimiser.split("()")[0]}_{num_hidden_nodes}.svg')
         # fig_loss.savefig(f'Sine_train_loss_{learning_rate_curr}.svg')
         # fig_pred.savefig(f'Sine_pred_{learning_rate_curr}.svg')
         print(f'Execution time {datetime.now() - start_time}')
