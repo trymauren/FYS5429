@@ -1,7 +1,6 @@
 import sys
 import git
 import numpy as np
-from abc import abstractmethod
 path_to_root = git.Repo('.', search_parent_directories=True).working_dir
 sys.path.append(path_to_root)
 
@@ -12,6 +11,12 @@ class Optimiser():
         pass
 
     def __call__(self, params, **kwargs):
+        """
+        This method calls the step() function of the implemented optimiser:
+            Given a list 'params' of gradients for the parameters to be
+            optimised, the step function returns a list of the same length
+            with update values for the given parameters.
+        """
         return self.step(params, **kwargs)
 
 
@@ -26,7 +31,6 @@ class SGD(Optimiser):
         for idx, param in enumerate(params):
             self.update[idx] = self.learning_rate*param
         return self.update
-
 
 class SGD_momentum(Optimiser):
 
@@ -45,7 +49,6 @@ class SGD_momentum(Optimiser):
             momentum = self.momentum_rate*self.update[idx]
             self.update[idx] = momentum+self.learning_rate*param
         return self.update
-
 
 class AdaGrad(Optimiser):
 
@@ -66,7 +69,6 @@ class AdaGrad(Optimiser):
             adagrad = param / (self.delta_ + np.sqrt(self.alphas[idx]))
             self.update[idx] = self.learning_rate * adagrad
         return self.update
-
 
 class RMSProp(Optimiser):
 
