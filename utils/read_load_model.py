@@ -1,8 +1,6 @@
 import sys
 import git
 import pickle
-path_to_root = git.Repo('.', search_parent_directories=True).working_dir
-sys.path.append(path_to_root)
 
 
 def save_model(estimator, path):
