@@ -1,8 +1,6 @@
 import sys
 import git
 import pickle
-path_to_root = git.Repo('.', search_parent_directories=True).working_dir
-sys.path.append(path_to_root)
 
 
 def save_model(estimator, path):
@@ -14,7 +12,7 @@ def save_model(estimator, path):
     TODO: Use something that is safe instead..?
     NOTE: But don't we like a life one the edge?
     """
-    with open('../' + path, 'wb') as filepointer:
+    with open(path, 'wb') as filepointer:
         pickle.dump(
                     estimator,
                     filepointer,
