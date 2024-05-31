@@ -42,7 +42,7 @@ print('Shape of y after batching:', y.shape)
 
 savepath = path_to_root + '/run-nlp/saved_models/simple_cat_model'
 
-train = False
+train = True
 infer = True
 
 hidden_nodes_config = [1, 2, 3, 4, 5, 10, 20, 50, 100, 200]
@@ -74,10 +74,10 @@ if train:
         )
 
         plt.plot(rnn.get_stats()['loss'], label=f'Hidden size: {hidden_nodes}')
-        plt.title(f'Loss over epochs for data "{text_data}"')
-        plt.legend()
-        # plt.savefig(path_to_root + '/run-nlp/saved_figs/simple_cat_loss/experiment.svg')
-        plt.show()
+    plt.title(f'Loss over epochs for data "{text_data}"')
+    plt.legend()
+    # plt.savefig(path_to_root + '/run-nlp/saved_figs/simple_cat_loss/experiment.svg')
+    plt.show()
 
 if infer:
 
