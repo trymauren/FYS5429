@@ -153,14 +153,16 @@ class RNN:
             self.states.append((last_x, h))  # this is not needed
 
             if output_probabilities:
+
                 ix = self.prob_to_ix(y.flatten())
+
                 if onehot:
                     outp = np.zeros((len(self.vocab), 1))
                     outp[ix] = 1
                     outp = outp.T
 
                 else:
-                    outp = self.ix_to_emb(ix)  # COMMENT IN FOR EMB
+                    outp = self.ix_to_emb(ix)
 
                 last_x = outp.copy()
                 ys[t] = outp.copy()
@@ -477,7 +479,6 @@ class RNN:
                 last_y_emb = temp
 
             else:
-
                 last_y_emb = self.vocab[self.prob_to_ix(last_seed_out)]
 
             ys = self._generate(last_y_emb, time_steps_to_generate-1,
