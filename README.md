@@ -152,7 +152,7 @@ All common functions and classes resides in `utils`. The `rnn` directory contain
         )
     ```
 
-## Early stopping
+### Early stopping
 In both training cases seen above, the keyword-parameters `X_val` and `y_val` accepts datasets that are used to validate the model (store validation loss). Both these datasets should be initialized the same way as the regular training datasets, as shown in the previous section. By passing an integer to `num_epochs_no_update` keyword-parameter, training will stop if validation loss has increased for more than `num_epochs_no_update`. 
 The loss can be plotted by simply calling plot_loss() on the model after training:
 
