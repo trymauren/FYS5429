@@ -13,43 +13,39 @@ import tensorflow as tf
 import multiprocessing as mp
 from functools import partial
 
-# ------ THIS FILE IS FOR INFERENCE :) ------ #
+# ------ THIS FILE IS FOR INFERENCE ONLY :) ------ #
 
 if __name__ == "__main__":
 
-    seq_length = 24                                                                  # adjust this to 4, 24 or 96
-    hidden_nodes_config = [400] # adjust this
+    # Adjust this to 4, 24 or 96
+    # seq_length = 24
+    seq_length = 96
 
-    savepath = path_to_root + f'/run-nlp/harry_potter/saved_models/seq_length_{seq_length}/harry_potter'
+    # This can be adjusted to any model in the
+    # directory of the specified sequence length (above).
+    # Text will be generated for each model with
+    # hidden size in the list:
+    hidden_nodes_config = [20]
+
+    # Adjust this to the text you want to give as primer for further generation
+    seed_str = 'Harry'
+
+    loadpath = path_to_root + f'/run-nlp/harry_potter/saved_models/seq_length_{seq_length}/harry_potter'
 
     word_emb = WORD_EMBEDDING()
 
+    """ Running inference for all models in hidden_node_config """
     for hidden_nodes in hidden_nodes_config:
+        print(hidden_nodes)
+        rnn = load_model(loadpath + f'_{hidden_nodes}_hidden')
 
-        rnn = load_model(savepath + f'_{hidden_nodes}_hidden')
-
-        print(f'Generated text for {hidden_nodes} hidden nodes:')
-        seed_str = 'Harry did not do'
+        print(f'Generated text for a model with {hidden_nodes} hidden nodes:')
         X_seed = np.array([word_emb.get_embeddings(seed_str)])
         X_seed = X_seed.reshape(-1, 1, X_seed.shape[-1])
         ys = rnn.predict(X_seed, time_steps_to_generate=25,
                          return_seed_out=False, onehot=False)
 
-        pred = '[Harry did not do]'
-        for emb in ys:
-            pred += ' '
-            pred += str(word_emb.find_closest(emb.flatten(), 1)[0])
-            pred += ' '
-
-        print(pred)
-
-        seed_str = 'never'
-        X_seed = np.array([word_emb.get_embeddings(seed_str)])
-        X_seed = X_seed.reshape(-1, 1, X_seed.shape[-1])
-        ys = rnn.predict(X_seed, time_steps_to_generate=25,
-                         return_seed_out=False, onehot=False)
-
-        pred = '[never]'
+        pred = f'[{seed_str}]'
         for emb in ys:
             pred += ' '
             pred += str(word_emb.find_closest(emb.flatten(), 1)[0])

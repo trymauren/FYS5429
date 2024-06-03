@@ -10,6 +10,17 @@ from utils.text_processing import WORD_EMBEDDING
 from utils.read_load_model import load_model
 import resource
 
+# ------ THIS FILE IS FOR TRAINING + INFERENCE ------ #
+
+savepath = path_to_root + '/run-nlp/simple_cat/saved_models/simple_cat_model'
+
+# change to true if you want to train. Note that this overrides existing models if the savepath is not changed
+train = False
+
+# leave True:)
+infer = True
+
+hidden_nodes_config = [1, 2, 3, 4, 5, 10, 20, 50, 100, 200]
 
 text_data = text_proc.read_file(path_to_root + '/data/embedding_test.txt')
 chars = sorted(list(set(text_data)))  # to keep the order consistent over runs
@@ -18,40 +29,32 @@ print(f'Size: {data_size}, unique: {vocab_size}.')
 char_to_ix = {ch: i for i, ch in enumerate(chars)}
 ix_to_char = {i: ch for i, ch in enumerate(chars)}
 
-seq_length = 6  # just 2^somenumber
-num_samples = data_size-seq_length
-
-X = np.zeros((num_samples, seq_length, 1, len(char_to_ix)))
-y = np.zeros((num_samples, seq_length, 1, len(char_to_ix)))
-
-for i in range(num_samples):
-    inputs = [char_to_ix[ch] for ch in text_data[i:i + seq_length]]
-    targets = [char_to_ix[ch] for ch in text_data[i + 1:i+seq_length+1]]
-    onehot_x = text_proc.create_onehot(inputs, char_to_ix)
-    onehot_y = text_proc.create_onehot(targets, char_to_ix)
-    X[i] = onehot_x
-    y[i] = onehot_y
-
-
-X = X.transpose((2, 1, 0, 3))
-y = y.transpose((2, 1, 0, 3))
-
-print('Shape of X after batching:', X.shape)
-print('Shape of y after batching:', y.shape)
-
-
-savepath = path_to_root + '/run-nlp/saved_models/simple_cat_model'
-
-train = True
-infer = True
-
-hidden_nodes_config = [1, 2, 3, 4, 5, 10, 20, 50, 100, 200]
 
 if train:
 
-    epo = 2000
-    learning_rate = 0.001
-    optimiser = 'Adam()'
+    epo = 2000  # adjust how many epochs to train for
+    learning_rate = 0.001  # adjust learning rate
+    optimiser = 'Adam()'  # adjust optimiser, AdaGrad, SGD, SGD_momentum
+
+    seq_length = 6
+    num_samples = data_size-seq_length
+
+    X = np.zeros((num_samples, seq_length, 1, len(char_to_ix)))
+    y = np.zeros((num_samples, seq_length, 1, len(char_to_ix)))
+
+    for i in range(num_samples):
+        inputs = [char_to_ix[ch] for ch in text_data[i:i + seq_length]]
+        targets = [char_to_ix[ch] for ch in text_data[i + 1:i+seq_length+1]]
+        onehot_x = text_proc.create_onehot(inputs, char_to_ix)
+        onehot_y = text_proc.create_onehot(targets, char_to_ix)
+        X[i] = onehot_x
+        y[i] = onehot_y
+
+    X = X.transpose((2, 1, 0, 3))
+    y = y.transpose((2, 1, 0, 3))
+
+    print('Shape of X after batching:', X.shape)
+    print('Shape of y after batching:', y.shape)
 
     for hidden_nodes in hidden_nodes_config:
         rnn = RNN_parallel(
@@ -111,3 +114,9 @@ if infer:
             pred += ix_to_char[ix]
 
         print(pred)
+
+        plt.plot(rnn.get_stats()['loss'], label=f'Hidden size: {hidden_nodes}')
+    plt.title(f'Loss over epochs for data "{text_data}"')
+    plt.legend()
+    # plt.savefig(path_to_root + '/run-nlp/saved_figs/simple_cat_loss/experiment.svg')
+    plt.show()
