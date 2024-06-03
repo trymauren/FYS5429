@@ -104,7 +104,7 @@ All common functions and classes resides in `utils`. The `rnn` directory contain
 
     X = X.transpose((2, 1, 0, 3))
     y = y.transpose((2, 1, 0, 3))
-```
+    ```
 
 - Numeric / sine data:
     ```python
@@ -174,6 +174,7 @@ rnn.plot_loss(plt, show=True, val=True/False)
     for emb in predict:
         print(word_emb.find_closest(emb, 1))
     ```
+
     ```python
     # Character case
     from utils.text_processing import onehot_to_ix
