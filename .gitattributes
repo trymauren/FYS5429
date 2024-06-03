@@ -1,15 +1,2 @@
-run-nlp/harry_potter/saved_models/seq_length_4/harry_potter_100_hidden filter=lfs diff=lfs merge=lfs -text
-run-nlp/harry_potter/saved_models/seq_length_4/harry_potter_1_hidden filter=lfs diff=lfs merge=lfs -text
-run-nlp/harry_potter/saved_models/seq_length_4/harry_potter_2_hidden filter=lfs diff=lfs merge=lfs -text
-run-nlp/harry_potter/saved_models/seq_length_4/harry_potter_5_hidden filter=lfs diff=lfs merge=lfs -text
-run-nlp/harry_potter/saved_models/seq_length_4/harry_potter_1000_hidden filter=lfs diff=lfs merge=lfs -text
-run-nlp/harry_potter/saved_models/seq_length_4/harry_potter_300_hidden filter=lfs diff=lfs merge=lfs -text
-run-nlp/harry_potter/saved_models/seq_length_4/harry_potter_4_hidden filter=lfs diff=lfs merge=lfs -text
-run-nlp/harry_potter/saved_models/seq_length_4/harry_potter_500_hidden filter=lfs diff=lfs merge=lfs -text
-run-nlp/harry_potter/saved_models/seq_length_4/harry_potter_10_hidden filter=lfs diff=lfs merge=lfs -text
-run-nlp/harry_potter/saved_models/seq_length_4/harry_potter_200_hidden filter=lfs diff=lfs merge=lfs -text
-run-nlp/harry_potter/saved_models/seq_length_4/harry_potter_20_hidden filter=lfs diff=lfs merge=lfs -text
-run-nlp/harry_potter/saved_models/seq_length_4/harry_potter_3_hidden filter=lfs diff=lfs merge=lfs -text
-run-nlp/harry_potter/saved_models/seq_length_4/harry_potter_400_hidden filter=lfs diff=lfs merge=lfs -text
-run-nlp/harry_potter/saved_models/seq_length_4/harry_potter_50_hidden filter=lfs diff=lfs merge=lfs -text
+run-nlp/harry_potter/saved_models/ filter=lfs diff=lfs merge=lfs -text
 . !text !filter !merge !diff
