@@ -170,16 +170,6 @@ def create_onehot(ixs: str, char_to_ix: dict):
 
 def onehot_to_ix(onehot):
     """
-    Returns the index of the 1 from a onehot-array, along the given axis
+    Returns the index of the 1 from a onehot-array
     """
     return onehot.argmax()
-
-
-# if __name__ == "__main__":
-#     res = read_file("embedding_test.txt", 5)
-#     print(res)
-#     emb_obj = WORD_EMBEDDING()
-#     emb = emb_obj.get_embeddings(str(res))
-#     for token in emb:
-#         print(emb_obj.find_closest(token, 1))
-#         print(token)
