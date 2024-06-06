@@ -70,9 +70,7 @@ class RNN:
         self.float_size = float
 
     def gradient_check(self, x, y, unrolling_steps, epsilon=1e-6):
-        """
-        Performs gradient check for given x, y.
-        """
+        """ Performs gradient check for given x, y. """
 
         stored_states = self.states.copy()
         xs, hs, y_pred = self._forward(x)
@@ -139,6 +137,38 @@ class RNN:
                   output_probabilities=False,
                   onehot=False
                   ):
+        """
+        This function (strictly) does not do generation, but rather
+        predicts the next output value given an input value (x) and
+        then feeds the output obtained as input at the next timestep.
+        This cycling is what "generates" a sequence of values.
+
+        Parameters:
+        -------------------------------
+        x : np.ndarray, shape: 1 x b x n
+            - This means one timestep of a sequence
+            - b: batchsize
+            - n: number of features (for NLP, this corresponds to number
+              of entries in embedding vector)
+
+        time_steps_to_generate : int
+            - How many new values to "generate"
+
+        output_probabilities: bool
+            - True if a "generated" value needs further processing
+              before passed as input
+
+        onehot: bool
+            - True if a "generated" value needs further processing
+              before passed as input
+
+        Returns:
+        -------------------------------
+        output state: np.ndarray, shape: time_steps_to_generate x b x k
+            - time_steps_to_generate: from argument to the parameter
+            - b: batchsize
+            - k: number of output nodes (output size)
+        """
 
         ys = np.zeros((time_steps_to_generate,
                        self.batch_size,
@@ -423,23 +453,32 @@ class RNN:
 
                 t_pointer = 0
 
+                # Iterating over sub-sequence of the whole sequence, see
+                # comment just below
                 while t_pointer < seq_length:
 
+                    # If the sequence is long (unrolling_steps) is given
+                    # as argument, these lines picks out a range of
+                    # timesteps to process in one forward/backward
+                    # pass
                     self._dispatch_state(val=False)
                     pointer_end = t_pointer + unrolling_steps
                     pointer_end = min(pointer_end, seq_length)
-
                     x_batch = x_sample[t_pointer:pointer_end]
                     y_batch = y_sample[t_pointer:pointer_end]
 
+                    # Not used in regular training, only to verify that
+                    # gradients are correct
                     if e == gradcheck_at:
                         self.gradient_check(x_batch, y_batch, unrolling_steps)
 
                     xs, hs, y_pred = self._forward(x_batch)
 
+                    # Store states from forward
                     for x, h in zip(xs, hs):
                         self.states.append((x, h))
 
+                    # States not needed in backpropagation can be deleted
                     while len(self.states) > unrolling_steps + 1:
                         del self.states[0]
 
@@ -447,6 +486,7 @@ class RNN:
 
                     steps = self._backward()
 
+                    # All code in this if-test is to process validation data
                     if self.val and len(X_val) > idx:
                         x_sample_val = X_val[idx]
                         y_sample_val = y_val[idx]
@@ -462,6 +502,10 @@ class RNN:
 
                     for param, step in zip(self.parameters, steps):
                         param -= step
+
+                # processing of one sequence (or batch) while loop end
+            # processing of a sample for loop end
+        # epochs for loop end
 
             if self.val:
                 if self.stats['val_loss'][e] >= self.stats['val_loss'][e-1]:
@@ -761,6 +805,13 @@ class RNN:
 
     def get_stats(self):
         """
-        Fetch the saved statistics as a dictionary
+        Fetches the saved statistics as a dictionary
+
+        The keys are currently:
+            - 'loss'
+            - 'val_loss' (if validation set is passed to fit())
+            - 'parameter_count'
+            - 'parameters'
         """
+
         return self.stats
