@@ -12,7 +12,7 @@ from utils import read_load_model
 from utils.activations import Relu, Tanh, Identity, Softmax
 from utils.loss_functions import Mean_Square_Loss as mse
 from utils.loss_functions import Classification_Logloss as ce
-from utils.optimisers import SGD, SGD_momentum, AdaGrad, RMSProp, Adam
+from utils.optimisers import SGD, SGD_momentum, AdaGrad, Adam
 
 
 class RNN:
@@ -23,7 +23,7 @@ class RNN:
             output_activation: Callable = None,
             loss_function: Callable = None,
             optimiser: Callable = None,
-            name: str = 'rnn',
+            name: str = None,
             seed: int = 24,
             clip_threshold: float = 5,
             **optimiser_params,
@@ -70,6 +70,9 @@ class RNN:
         self.float_size = float
 
     def gradient_check(self, x, y, unrolling_steps, epsilon=1e-6):
+        """
+        Performs gradient check for given x, y.
+        """
 
         stored_states = self.states.copy()
         xs, hs, y_pred = self._forward(x)
@@ -124,7 +127,7 @@ class RNN:
                     print(f"Backpropagation gradient: {bptt_grad_param}")
                     print(f"Relative Error: {relative_error}")
                     print(f"Index of param in {pname} with error: {ix}, value of param: {param[ix]}")
-                    # exit()
+
                 else:
                     print(f"Gradient check passed for parameter {pname}. Difference: {relative_error}")
                     print(f"Index of param in {pname} with correct value: {ix}, value of param: {param[ix]}")
@@ -173,8 +176,31 @@ class RNN:
 
         return ys
 
-    def _forward_unit(self, x_sample, last_h):
-        x_weighted = x_sample @ self.U.T
+    def _forward_unit(self, x_step, last_h) -> None:
+        """
+        Executes the rnn cell equations
+
+        Parameters:
+        -------------------------------
+        x_step : np.ndarray, shape: b x n
+            - This means one timestep of a sequence
+            - b: batchsize
+            - n: number of features (for NLP, this corresponds to number
+                                ´of entries in embedding vector)
+
+        Returns:
+        -------------------------------
+        hidden state: np.ndarray, shape: b x h
+            - b: batchsize
+            - h: number of hidden nodes (hidden size)
+
+        output state: np.ndarray, shape: b x k
+            - b: batchsize
+            - k: number of output nodes (output size)
+
+        """
+
+        x_weighted = x_step @ self.U.T
         h_weighted = last_h @ self.W.T
         a = self.b + h_weighted + x_weighted
         h = self._hidden_activation(a)
@@ -183,6 +209,36 @@ class RNN:
         return h, y
 
     def _forward(self, x_sample) -> None:
+        """
+        Calls _forward_unit for amount of timesteps in x_sample and
+        returns the states
+
+        Parameters:
+        -------------------------------
+        x_sample : np.ndarray, shape: s x b x n
+            - This means one batch of sequences
+            - s: sequence length
+            - b: batchsize
+            - n: number of features (for NLP, this corresponds to number
+                                ´of entries in embedding vector)
+
+        Returns:
+        -------------------------------
+        input states: np.ndarray, shape: s x b x n
+            - s: same as x_sample
+            - b: same as x_sample
+            - n: same as x_sample
+
+        hidden states: np.ndarray, shape: s x b x h
+            - s: same as x_sample
+            - b: same as x_sample
+            - h: number of hidden nodes in model
+
+        output states: np.ndarray, shape: s x b x k
+            - s: same as x_sample
+            - b: same as x_sample
+            - k: number of output nodes (output size)
+        """
 
         xs = np.zeros((len(x_sample), self.batch_size, self.num_features))
         hs = np.zeros((len(x_sample), self.batch_size, self.num_hidden_nodes))
@@ -199,6 +255,22 @@ class RNN:
         return xs, hs, ys
 
     def _backward(self, check=False) -> None:
+        """
+        Calculates gradients with respect to each parameter, and calls
+        the optimiser to get the step for each clipped gradient. The
+        steps are then returned.
+
+        Parameters:
+        -------------------------------
+        check: bool
+            - True to return raw gradients (without clipping and steps)
+              for use in gradient checking.
+
+        Returns:
+        -------------------------------
+        steps: list containing np.ndarrays
+            - The steps for each parameter
+        """
 
         deltas_U = np.zeros_like(self.U, dtype=self.float_size)
         deltas_W = np.zeros_like(self.W, dtype=self.float_size)
@@ -213,8 +285,7 @@ class RNN:
         loss_grad = self._loss_function.grad()
 
         for t in reversed(range(len(loss_grad))):
-            # if self.states[t][0] is None:
-            #     break  # reached init state
+
             grad_o_Cost = loss_grad[t]
 
             d_act = self._hidden_activation.grad(self.states[t+1][1])
@@ -304,16 +375,13 @@ class RNN:
         Returns:
         -------------------------------
         hidden state: np.ndarray, shape: b x h
-        b: batchsize
-        h: number of hidden nodes (hidden size)
+            - b: batchsize
+            - h: number of hidden nodes (hidden size)
 
         """
 
         if gradcheck_at < epochs:
             self.float_size = np.float64
-
-        # X = np.array(X, dtype=object)  # object to allow inhomogeneous shape
-        # y = np.array(y, dtype=object)  # object to allow inhomogeneous shape
 
         if X.ndim != 4:
             raise ValueError('Input (X) must have 4 dimensions:\
@@ -348,8 +416,8 @@ class RNN:
 
             for idx, (x_sample, y_sample) in enumerate(zip(X, y)):
 
-                x_sample = np.array(x_sample, dtype=self.float_size)
-                y_sample = np.array(y_sample, dtype=self.float_size)
+                x_sample = np.asarray(x_sample, dtype=self.float_size)
+                y_sample = np.asarray(y_sample, dtype=self.float_size)
 
                 self._init_states()
 
@@ -411,7 +479,8 @@ class RNN:
                     print(f'Train loss increasing, stopping fitting.')
                     break
 
-        read_load_model.save_model(self, self.name)
+        if self.name is not None:
+            read_load_model.save_model(self, self.name)
 
         self.stats['loss'] /= self.num_samples
 
@@ -420,7 +489,13 @@ class RNN:
 
         return self.ys, self.states[-1][1]
 
-    def _loss(self, y_true, y_pred, epoch, val=False):
+    def _loss(self, y_true, y_pred, epoch, val=False) -> None:
+        """
+        Calculates loss and stores it in statistics container. The loss
+        calculated is also stored in the loss class, for use in
+        gradient calculation
+        """
+
         loss = self._loss_function(y_true, y_pred)
         self.stats['loss'][epoch] += loss
         if val:
@@ -434,22 +509,45 @@ class RNN:
             time_steps_to_generate: int = 1,
             return_seed_out=False,
             onehot=False,
-            ) -> np.ndarray:
+            ):
         """
         Predicts the next value(s) for a primer-sequence specified in X
 
         Parameters:
         -------------------------------
-        X : np.ndarray, shape: 1 x 1 x n
-        - An X-sample to seed generation of samples
-        n: number of features
+        X : np.ndarray, shape: s x 1 x n
+            - An X-sample to seed generation of samples
+            - n: number of features
+
+        hs_init : bool
+            - If True: use this hidden state as the last hidden state
+            - If False: hidden state is initialised to zeros
+
+        time_steps_to_generate: int
+            - Number of timesteps to generate
+
+        return_seed_out : bool
+            - If True: see below
+            - If False: None
+
+        onehot : bool
+            - Ideally, this parameter should not be present. However, as
+              the code is now - there is need to distinguish between
+              the character and word embedding cases
 
         Returns:
         -------------------------------
-        - Generated sequence as np.ndarray, shape: s x 1 x k
-        s: number of timesteps to generate, specified by time_steps_to_generate
-        k: output size
+        Generated sequence as np.ndarray, shape: s x 1 x k
+            - s: number of timesteps to generate, specified by
+              time_steps_to_generate
+            - k: output size
+
+        Possibly the output states that are created as a result of
+        forward-passing X, shape: s x 1 x k
+            - s: same as X
+            - k: number of output nodes (output size)
         """
+
         _, self.batch_size, num_features = X.shape
 
         xs_init = None
@@ -523,10 +621,20 @@ class RNN:
         return ys
 
     def ix_to_emb(self, index):
+        """
+        Returns the word embedding or one-hot representation of a
+        character corresponding to the index in the vocabulary
+        """
+
         embedding = self.vocab[index]
         return embedding
 
     def prob_to_ix(self, probabilities):
+        """
+        Samples an index from probabilities parameter using the models
+        specified rng generator
+        """
+
         return self.rng.choice(range(len(probabilities)), p=probabilities)
 
     def _init_weights(self) -> None:
@@ -580,15 +688,11 @@ class RNN:
 
     def _dispatch_state(self, val=False) -> None:
         """
-        'Dispatches' the states of validation/training by swapping out what
-        self.states references.
-        Parameters:
-        -------------------------------
-        None
-        Returns:
-        -------------------------------
-        None
+        'Dispatches' the states of validation/training by swapping out
+         what self.states references. If val is True, then validation
+         states are dispatched
         """
+
         if not val:
             self.val_states = self.states.copy()
             self.states = self.train_states
@@ -599,7 +703,7 @@ class RNN:
 
     def _init_states(self):
         """
-        Initialises the state memory.
+        Initialises the states memory.
         Parameters:
         -------------------------------
         None
@@ -656,4 +760,7 @@ class RNN:
         return fig, ax
 
     def get_stats(self):
+        """
+        Fetch the saved statistics as a dictionary
+        """
         return self.stats
