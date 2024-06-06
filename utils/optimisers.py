@@ -12,11 +12,13 @@ class Optimiser():
 
     def __call__(self, params, **kwargs):
         """
-        This method calls the step() function of the implemented optimiser:
-            Given a list 'params' of gradients for the parameters to be
-            optimised, the step function returns a list of the same length
-            with update values for the given parameters.
+        Calls the step() function of the implemented optimiser:
+        Given a list 'params' of gradients for the parameters to be
+        optimised, the step function returns a list of the same length
+        with update values for the given parameters.
+
         """
+
         return self.step(params, **kwargs)
 
 
@@ -31,6 +33,7 @@ class SGD(Optimiser):
         for idx, param in enumerate(params):
             self.update[idx] = self.learning_rate*param
         return self.update
+
 
 class SGD_momentum(Optimiser):
 
@@ -49,6 +52,7 @@ class SGD_momentum(Optimiser):
             momentum = self.momentum_rate*self.update[idx]
             self.update[idx] = momentum+self.learning_rate*param
         return self.update
+
 
 class AdaGrad(Optimiser):
 
@@ -69,6 +73,7 @@ class AdaGrad(Optimiser):
             adagrad = param / (self.delta_ + np.sqrt(self.alphas[idx]))
             self.update[idx] = self.learning_rate * adagrad
         return self.update
+
 
 class RMSProp(Optimiser):
 
@@ -95,6 +100,7 @@ class RMSProp(Optimiser):
             self.update[idx] = self.learning_rate * rmsprop
         return self.update
 
+
 class Adam(Optimiser):
     def __init__(self):
         super().__init__()
@@ -105,11 +111,12 @@ class Adam(Optimiser):
 
     def step(self,
              params,
-             learning_rate = .001,
-             decay_rate1 = .9,
-             decay_rate2 = .999,
-             delta = 1e-8
-            ):
+             learning_rate=.001,
+             decay_rate1=.9,
+             decay_rate2=.999,
+             delta=1e-8
+             ):
+
         self.epsilon = learning_rate
         self.rho1 = decay_rate1
         self.rho2 = decay_rate2
@@ -119,10 +126,10 @@ class Adam(Optimiser):
             self.alphas1 = [0]*len(params)
         if self.alphas2 is None:
             self.alphas2 = [0]*len(params)
-        
-        self.update  = []
+
+        self.update = []
         self.t = self.t + 1
-        
+
         for idx, param in enumerate(params):
             self.alphas1[idx] = (
                 self.rho1 * self.alphas1[idx]
@@ -142,22 +149,10 @@ class Adam(Optimiser):
         return self.update
 
 
-
-
 def clip_gradient(gradients: np.ndarray, threshold: float) -> np.ndarray:
     """
-    Finds l2-norm of gradient vector and normalizes it.
-    TODO Find out if actual delta parameters are the ones to be adjusted 
-    to make norm of grad vector be within threshold, or if just scaling 
-    the grad vector itself suffices
-    EDIT: found what seems to be an answer to exactly how the clipping 
-    is done, it seems it's only scaling of the actual gradient: 
-    https://towardsdatascience.com/what-is-gradient-clipping-b8e815cdfb48
-    g = g*(threshold/l2norm(g)) or g = threshold*(g/l2norm(g))
+    Normalises (clips) the gradient argument given to 'gradients'.
     """
-    # for gradient in gradients:
-    #     gradient
-
     for g in gradients:
         norm_g = np.linalg.norm(g)
         if norm_g > threshold:
