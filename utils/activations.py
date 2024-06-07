@@ -21,13 +21,12 @@ class Relu(Activation):
         """ Implements g(x) = max(0, z) """
         return np.maximum(0, z)
 
-    def grad(self, a):
+    def grad(self, a: list):
         """
         Implements g'(z) = 1 : x >= 0, g'(z) = 0 : x < 0
         Decided on using g'(0) = 1. Could do g'(0) = 0 instead
         """
-        return np.array([1 if i >= 0 else 0 for i in a])
-
+        return np.array([1 if i >= 0 else 0 for i in a[0]])
 
 class Tanh(Activation):
 
