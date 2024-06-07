@@ -1,6 +1,6 @@
 # This repository contains code for "RNN - an educational implementation" for the course FYS5429.
 
-All common functions and classes resides in `utils`. The `rnn` directory contains the rnn code. Data used for training the networks can be found in `data`. Files for running experiments conducted and shown in the report, can be found in the directory `run-nlp` (natural language processing/generation experiments) and `run-sine` (sine wave prediction experiments).
+All common functions and classes resides in `utils`. The `rnn` directory contains the rnn code. Data used for training the networks can be found in `data`. Files for running experiments conducted and shown in the report, can be found in the directory `run-nlp` (natural language processing/generation experiments), and `run-sine` (sine wave prediction experiments). Due to the `run_nlp` directory residing at git-lfs, the files in this directory (including README) cannot be read in the browser.
 
 # Example installation of python packages required
 (Only tested for python 3.11.9)
