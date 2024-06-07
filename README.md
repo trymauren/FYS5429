@@ -2,10 +2,8 @@
 
 All common functions and classes resides in `utils`. The `rnn` directory contains the rnn code. Data used for training the networks can be found in `data`. Files for running experiments conducted and shown in the report, can be found in the directory `run-nlp` (natural language processing/generation experiments) and `run-sine` (sine wave prediction experiments).
 
-# Installation
-
-#### Mac
-Require: Python 3.11.9.
+# Example installation of python packages required
+(Only tested for python 3.11.9)
 ```
 virtualenv my_new_environment
 . my_new_environment/bin/activate
