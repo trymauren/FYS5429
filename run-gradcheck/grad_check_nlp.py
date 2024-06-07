@@ -63,5 +63,5 @@ rnn.fit(
     epo,
     num_hidden_nodes=10,
     vocab=ix_to_char,
-    gradcheck_at=,
+    gradcheck_at=gradcheck_at,
 )
