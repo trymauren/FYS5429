@@ -3,12 +3,10 @@ import git
 path_to_root = git.Repo('.', search_parent_directories=True).working_dir
 sys.path.append(path_to_root)
 import numpy as np
-import matplotlib.pyplot as plt
-from rnn.rnn import RNN as RNN_parallel
+from rnn.rnn import RNN
 import utils.text_processing as text_proc
 from utils.text_processing import WORD_EMBEDDING
 from utils.read_load_model import load_model
-import resource
 
 # ------ THIS FILE IS FOR RUNNING GRADIENT CHECK ------ #
 gradcheck_at = 10  # check gradient at epoch 10
@@ -47,7 +45,7 @@ y = y.transpose((2, 1, 0, 3))
 print('Shape of X after batching:', X.shape)
 print('Shape of y after batching:', y.shape)
 
-rnn = RNN_parallel(
+rnn = RNN(
     hidden_activation='Tanh()',
     output_activation='Softmax()',
     loss_function='ce()',

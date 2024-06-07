@@ -9,7 +9,7 @@ from tqdm import tqdm
 from collections.abc import Callable
 from utils import optimisers
 from utils import read_load_model
-from utils.activations import Relu, Tanh, Identity, Softmax
+from utils.activations import Relu, Tanh, Identity, Sigmoid, Softmax
 from utils.loss_functions import Mean_Square_Loss as mse
 from utils.loss_functions import Classification_Logloss as ce
 from utils.optimisers import SGD, SGD_momentum, AdaGrad, Adam
