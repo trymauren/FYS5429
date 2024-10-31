@@ -1,6 +1,6 @@
 import sys
 import git
-path_to_root = git.Repo('../', search_parent_directories=True).working_dir
+path_to_root = git.Repo('.', search_parent_directories=True).working_dir
 sys.path.append(path_to_root)
 import resource
 import numpy as np
